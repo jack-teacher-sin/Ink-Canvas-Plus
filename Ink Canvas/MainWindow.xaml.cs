@@ -2,7 +2,6 @@ using AutoUpdaterDotNET;
 using InkCanvasPlus.Helpers;
 using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Helpers;
-using IWshRuntimeLibrary;
 using Microsoft.Office.Interop.PowerPoint;
 using Microsoft.Win32;
 using Newtonsoft.Json;
@@ -59,6 +58,7 @@ namespace InkCanvasPlus
         public MainWindow()
         {
             InitializeComponent();
+            InitializeGeometryTools();
 
             BorderSettings.Opacity = 0;
             BorderSettings.Visibility = Visibility.Collapsed;
@@ -1601,6 +1601,7 @@ namespace InkCanvasPlus
                 ThemeManager.Current.ApplicationTheme = ApplicationTheme.Light;
             }
             SetColorByIndex();
+            RefreshGeometryToolTheme();
             if (!Settings.Appearance.IsTransparentButtonBackground)
             {
                 ToggleSwitchTransparentButtonBackground_Toggled(ToggleSwitchTransparentButtonBackground, null);
@@ -3422,6 +3423,7 @@ namespace InkCanvasPlus
                 BtnSwitchTheme.Content = "深色";
             }
             BtnSwitchTheme_Click(sender, e);
+            RefreshGeometryToolTheme();
             SaveSettingsToFile();
         }
 
@@ -5581,6 +5583,11 @@ namespace InkCanvasPlus
         bool isMouseDown = false;
         private void inkCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (GeometryToolsInkCanvasMouseDown(e))
+            {
+                e.Handled = true;
+                return;
+            }
             isMouseDown = true;
             if (NeedUpdateIniP())
             {
@@ -5590,6 +5597,11 @@ namespace InkCanvasPlus
 
         private void inkCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            if (GeometryToolsInkCanvasMouseMove(e))
+            {
+                e.Handled = true;
+                return;
+            }
             if (isMouseDown)
             {
                 MouseTouchMove(e.GetPosition(inkCanvas));
@@ -5598,6 +5610,12 @@ namespace InkCanvasPlus
 
         private void inkCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (GeometryToolsInkCanvasMouseUp(e))
+            {
+                e.Handled = true;
+                isMouseDown = false;
+                return;
+            }
             if (drawingShapeMode == 5)
             {
                 Circle circle = new Circle(new Point(), 0, lastTempStroke);
@@ -6732,8 +6750,9 @@ namespace InkCanvasPlus
         {
             try
             {
-                WshShell shell = new WshShell();
-                IWshShortcut shortcut = (IWshShortcut)shell.CreateShortcut(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\" + exeName + ".lnk");
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                dynamic shell = Activator.CreateInstance(shellType);
+                dynamic shortcut = shell.CreateShortcut(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\" + exeName + ".lnk");
                 //设置快捷方式的目标所在的位置(源程序完整路径)
                 shortcut.TargetPath = System.Windows.Forms.Application.ExecutablePath;
                 //应用程序的工作目录
@@ -7056,6 +7075,7 @@ namespace InkCanvasPlus
         {
             BorderClearInDelete.Visibility = Visibility.Collapsed;
             BorderTools.Visibility = Visibility.Collapsed;
+            BorderGeometryTools.Visibility = Visibility.Collapsed;
         }
 
 
@@ -7130,6 +7150,7 @@ namespace InkCanvasPlus
             }
 
             SetColors();
+            RefreshGeometryToolTheme();
         }
 
         private void SymbolIconDelete_MouseUp(object sender, MouseButtonEventArgs e)

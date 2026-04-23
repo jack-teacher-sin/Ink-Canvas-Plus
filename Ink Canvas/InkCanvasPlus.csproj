@@ -101,35 +101,6 @@
 		</PackageReference>
 	</ItemGroup>
 	<ItemGroup>
-		<COMReference Include="IWshRuntimeLibrary">
-			<Guid>{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}</Guid>
-			<VersionMajor>1</VersionMajor>
-			<VersionMinor>0</VersionMinor>
-			<Lcid>0</Lcid>
-			<WrapperTool>tlbimp</WrapperTool>
-			<Isolated>False</Isolated>
-			<EmbedInteropTypes>True</EmbedInteropTypes>
-		</COMReference>
-		<COMReference Include="stdole">
-			<Guid>{00020430-0000-0000-C000-000000000046}</Guid>
-			<VersionMajor>2</VersionMajor>
-			<VersionMinor>0</VersionMinor>
-			<Lcid>0</Lcid>
-			<WrapperTool>primary</WrapperTool>
-			<Isolated>False</Isolated>
-			<EmbedInteropTypes>True</EmbedInteropTypes>
-		</COMReference>
-		<COMReference Include="VBIDE">
-			<Guid>{0002E157-0000-0000-C000-000000000046}</Guid>
-			<VersionMajor>5</VersionMajor>
-			<VersionMinor>3</VersionMinor>
-			<Lcid>0</Lcid>
-			<WrapperTool>primary</WrapperTool>
-			<Isolated>False</Isolated>
-			<EmbedInteropTypes>True</EmbedInteropTypes>
-		</COMReference>
-	</ItemGroup>
-	<ItemGroup>
 		<WCFMetadata Include="Connected Services\" />
 	</ItemGroup>
 	<ItemGroup>

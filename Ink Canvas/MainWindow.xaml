@@ -159,6 +159,131 @@
                 </DrawingAttributes>
             </InkCanvas.DefaultDrawingAttributes>-->
         </InkCanvas>
+        <Canvas x:Name="GeometryToolsOverlayCanvas"
+                Visibility="{Binding ElementName=inkCanvas, Path=Visibility}">
+            <Border x:Name="RulerBorder"
+                    Visibility="Collapsed"
+                    Width="560"
+                    Height="120"
+                    Cursor="Pen"
+                    CornerRadius="8"
+                    BorderBrush="#A61F2A40"
+                    BorderThickness="1.2"
+                    Background="#26E8E8E8"
+                    RenderTransformOrigin="0,0.5"
+                    SizeChanged="RulerBorder_SizeChanged"
+                    MouseLeftButtonDown="RulerBorder_MouseLeftButtonDown"
+                    MouseMove="RulerBorder_MouseMove"
+                    MouseLeftButtonUp="RulerBorder_MouseLeftButtonUp">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="34" />
+                    </Grid.ColumnDefinitions>
+                    <Button x:Name="CloseRulerButton" Grid.Column="0" Width="24" Height="24" Margin="8,0,0,0"
+                            HorizontalAlignment="Left" VerticalAlignment="Center" Content="X" Foreground="#FFD93535"
+                            FontSize="13" FontWeight="Bold" Click="CloseRulerButton_Click"
+                            PreviewMouseLeftButtonDown="GeometryToolButton_PreviewMouseLeftButtonDown"
+                            ToolTip="取消直尺" />
+                    <Canvas x:Name="RulerTickCanvas" Grid.Column="1" Margin="0,8,0,8" />
+                    <Ellipse x:Name="RulerPivotDot" Width="10" Height="10" HorizontalAlignment="Left"
+                             VerticalAlignment="Center" Margin="-5,0,0,0" Fill="#FFD34A4A" Stroke="#FF8A2020"
+                             StrokeThickness="1.2" ToolTip="旋转中心点" />
+                    <Border Grid.Column="2" Background="#FF4A4A4A" CornerRadius="0,6,6,0">
+                        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <Border x:Name="RulerRotateHandle" Width="22" Height="22" Margin="0,8,0,6"
+                                    CornerRadius="11" Background="#FF6D52BD" Cursor="Hand"
+                                    MouseLeftButtonDown="RulerRotateHandle_MouseLeftButtonDown"
+                                    MouseMove="RulerRotateHandle_MouseMove"
+                                    MouseLeftButtonUp="RulerRotateHandle_MouseLeftButtonUp"
+                                    ToolTip="按住旋转">
+                                <TextBlock Text="↻" Foreground="White" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <Border x:Name="RulerResizeHandle" Width="18" Height="30" Margin="0,4,0,8"
+                                    CornerRadius="4" Background="#554A4A4A" Cursor="SizeWE"
+                                    MouseLeftButtonDown="RulerResizeHandle_MouseLeftButtonDown"
+                                    MouseMove="RulerResizeHandle_MouseMove"
+                                    MouseLeftButtonUp="RulerResizeHandle_MouseLeftButtonUp"
+                                    ToolTip="按住调整长度">
+                                <TextBlock Text="⋮" Foreground="White" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <Border x:Name="TriangleBorder"
+                    Visibility="Collapsed"
+                    Width="330"
+                    Height="240"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Pen"
+                    MouseLeftButtonDown="TriangleBorder_MouseLeftButtonDown"
+                    MouseMove="TriangleBorder_MouseMove"
+                    MouseLeftButtonUp="TriangleBorder_MouseLeftButtonUp">
+                <Canvas x:Name="TriangleCanvas">
+                    <Polygon x:Name="TrianglePolygon" Fill="#1A000000" Stroke="#FF4E5562" StrokeThickness="2" />
+                    <Button x:Name="CloseTriangleButton" Width="24" Height="24" Content="X" Foreground="#FFD93535"
+                            FontSize="13" FontWeight="Bold" Background="#66FFFFFF" BorderBrush="#66FFFFFF"
+                            BorderThickness="1" Click="CloseTriangleButton_Click"
+                            PreviewMouseLeftButtonDown="GeometryToolButton_PreviewMouseLeftButtonDown"
+                            ToolTip="取消三角尺" />
+                    <Canvas x:Name="TriangleTickCanvas" IsHitTestVisible="False" />
+                    <Border x:Name="TriangleRotateHandle" Width="24" Height="24" Background="#FF6D52BD"
+                            CornerRadius="12" Cursor="Hand" MouseLeftButtonDown="TriangleRotateHandle_MouseLeftButtonDown"
+                            MouseMove="TriangleRotateHandle_MouseMove" MouseLeftButtonUp="TriangleRotateHandle_MouseLeftButtonUp"
+                            ToolTip="按住旋转">
+                        <TextBlock Text="↻" Foreground="White" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Border x:Name="TriangleVertexBHandle" Width="56" Height="56" Background="Transparent"
+                            Cursor="SizeWE" MouseLeftButtonDown="TriangleVertexBHandle_MouseLeftButtonDown"
+                            MouseMove="TriangleVertexBHandle_MouseMove" MouseLeftButtonUp="TriangleVertexBHandle_MouseLeftButtonUp"
+                            ToolTip="拖动改变边长" />
+                    <Border x:Name="TriangleVertexCHandle" Width="56" Height="56" Background="Transparent"
+                            Cursor="SizeNS" MouseLeftButtonDown="TriangleVertexCHandle_MouseLeftButtonDown"
+                            MouseMove="TriangleVertexCHandle_MouseMove" MouseLeftButtonUp="TriangleVertexCHandle_MouseLeftButtonUp"
+                            ToolTip="拖动改变边长" />
+                </Canvas>
+            </Border>
+
+            <Border x:Name="ProtractorBorder"
+                    Visibility="Collapsed"
+                    Width="380"
+                    Height="250"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    MouseLeftButtonDown="ProtractorBorder_MouseLeftButtonDown"
+                    MouseMove="ProtractorBorder_MouseMove"
+                    MouseLeftButtonUp="ProtractorBorder_MouseLeftButtonUp"
+                    MouseWheel="ProtractorBorder_MouseWheel">
+                <Canvas x:Name="ProtractorCanvas" Background="Transparent">
+                    <Path x:Name="ProtractorFillPath" Fill="#26D9E0EA" Stroke="#FF4E5562" StrokeThickness="2" />
+                    <Canvas x:Name="ProtractorTickCanvas" IsHitTestVisible="False" />
+                    <Ellipse x:Name="ProtractorPivotDot" Width="10" Height="10" Fill="#FFD34A4A"
+                             Stroke="#FF8A2020" StrokeThickness="1.2" />
+                    <Button x:Name="CloseProtractorButton" Width="24" Height="24" Content="X" Foreground="#FFD93535"
+                            FontSize="13" FontWeight="Bold" Background="#66FFFFFF" BorderBrush="#66FFFFFF"
+                            BorderThickness="1" Click="CloseProtractorButton_Click"
+                            PreviewMouseLeftButtonDown="GeometryToolButton_PreviewMouseLeftButtonDown"
+                            ToolTip="取消量角器" />
+                    <Border x:Name="ProtractorRotateHandle" Width="24" Height="24" Background="#FF6D52BD"
+                            CornerRadius="12" Cursor="Hand" MouseLeftButtonDown="ProtractorRotateHandle_MouseLeftButtonDown"
+                            MouseMove="ProtractorRotateHandle_MouseMove" MouseLeftButtonUp="ProtractorRotateHandle_MouseLeftButtonUp"
+                            MouseWheel="ProtractorBorder_MouseWheel" ToolTip="按住旋转">
+                        <TextBlock Text="↻" Foreground="White" FontSize="13" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <Border x:Name="ProtractorResizeHandle" Width="22" Height="22" Background="#554A4A4A"
+                            CornerRadius="11" Cursor="SizeWE" MouseLeftButtonDown="ProtractorResizeHandle_MouseLeftButtonDown"
+                            MouseMove="ProtractorResizeHandle_MouseMove" MouseLeftButtonUp="ProtractorResizeHandle_MouseLeftButtonUp"
+                            ToolTip="按住调整大小">
+                        <TextBlock Text="↔" Foreground="White" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                </Canvas>
+            </Border>
+        </Canvas>
         <Grid Visibility="{Binding ElementName=inkCanvas, Path=Visibility}">
             <Grid Name="GridInkCanvasSelectionCover"
                   MouseDown="GridInkCanvasSelectionCover_MouseDown"
@@ -1288,6 +1413,48 @@
                                 </Border>
                             </Grid>
                             <ui:SymbolIcon Name="SymbolIconSelect" Symbol="SelectAll" Foreground="{DynamicResource FloatBarForeground}" MouseUp="SymbolIconSelect_MouseUp" />
+                            <Grid Margin="3,5,0,5" Width="20">
+                                <TextBlock Text="尺" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource FloatBarForeground}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           MouseDown="Border_MouseDown" MouseUp="GeometryToolsButton_MouseUp" ToolTip="尺具" />
+                                <Border x:Name="BorderGeometryTools" Visibility="Collapsed"
+                                        Background="{DynamicResource FloatBarBackground}" BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                                        BorderThickness="1" CornerRadius="18" Margin="-78,-102,-78,30" Height="88">
+                                    <Viewbox Margin="8">
+                                        <ui:SimpleStackPanel Orientation="Horizontal" Spacing="14">
+                                            <Border Width="42" Height="42" CornerRadius="10" Background="#22FFFFFF"
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1"
+                                                    MouseUp="RulerToolItem_MouseUp" ToolTip="直尺">
+                                                <Viewbox Margin="7">
+                                                    <Grid Width="40" Height="28">
+                                                        <Rectangle Width="40" Height="14" VerticalAlignment="Top" Fill="#FFE8E8E8" Stroke="#FF4D5564" StrokeThickness="1.8" />
+                                                        <Path Data="M6,14 L6,28 M10,14 L10,23 M14,14 L14,28 M18,14 L18,23 M22,14 L22,28 M26,14 L26,23 M30,14 L30,28 M34,14 L34,23"
+                                                              Stroke="#FF4D5564" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                    </Grid>
+                                                </Viewbox>
+                                            </Border>
+                                            <Border Width="42" Height="42" CornerRadius="10" Background="#22FFFFFF"
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1"
+                                                    MouseUp="TriangleToolItem_MouseUp" ToolTip="三角尺">
+                                                <Viewbox Margin="7">
+                                                    <Polygon Points="8,34 8,10 34,34" Fill="#1A000000" Stroke="#FF4E5562" StrokeThickness="2" />
+                                                </Viewbox>
+                                            </Border>
+                                            <Border Width="42" Height="42" CornerRadius="10" Background="#22FFFFFF"
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1"
+                                                    MouseUp="ProtractorToolItem_MouseUp" ToolTip="量角器">
+                                                <Viewbox Margin="7">
+                                                    <Grid Width="42" Height="42">
+                                                        <Path Data="M7,31 A12,12 0 0 1 31,31 L7,31 Z" Fill="#26D9E0EA" Stroke="#FF4E5562" StrokeThickness="2" />
+                                                        <Path Data="M10,31 L28,31 M13,31 L13,26 M16,31 L16,29 M19,31 L19,26 M22,31 L22,29 M25,31 L25,26"
+                                                              Stroke="#FF4E5562" StrokeThickness="1.1" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                    </Grid>
+                                                </Viewbox>
+                                            </Border>
+                                        </ui:SimpleStackPanel>
+                                    </Viewbox>
+                                </Border>
+                            </Grid>
                             <Grid Margin="3,5,0,5">
                                 <Image MouseUp="ImageDrawShape_MouseUp" MouseDown="Border_MouseDown" Margin="-2.5" Source="{DynamicResource DrawShapeImageSource.DrawShapeIcon}" />
                                 <Border x:Name="BorderDrawShape" Visibility="Visible" Background="{DynamicResource FloatBarBackground}" BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1"

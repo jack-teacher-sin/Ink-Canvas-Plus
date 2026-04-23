@@ -10,6 +10,11 @@
 Ink Canvas Plus (IC+) 是一款由 Clover Yan 维护、复刻自 WXRIW/Ink Canvas 的 Windows 画板应用，旨在优化各方面的使用体验，并尽可能保留原版 Ink Canvas 的操作体验。
 </div>
 
+## 新增功能
+- 黑板/白板模式新增几何尺具：直尺、三角尺、量角器。
+- 尺具支持拖动、旋转、缩放，并会根据黑板/白板背景自动切换刻度颜色。
+- 直尺和三角尺支持贴边辅助画线；量角器支持点击刻度弧定点标记。
+
 ## 📗 FAQ
 ### 在 Windows 10 以下版本系统中，部分图标显示为 “□” 怎么办？
 [点击下载](https://aka.ms/SegoeFonts "SegoeFonts") SegoeFonts 文件，安装压缩包中 `SegMDL2.ttf` 字体后重启即可解决。
