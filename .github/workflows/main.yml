@@ -79,7 +79,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     # 🔽 仅在推送 Tag 时运行，普通 push 和 PR 不会触发
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: |
+    startsWith(github.ref, 'refs/tags/v') ||
+    github.event_name == 'workflow_dispatch'
 
     steps:
       # 1. 检出代码
