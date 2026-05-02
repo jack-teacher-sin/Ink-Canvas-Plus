@@ -13,43 +13,43 @@ namespace InkCanvasPlus.Helpers
             if (strokes == null || strokes.Count == 0)
                 return default;
 
-            var analyzer = new InkAnalyzer();
-            analyzer.AddStrokes(strokes);
-            analyzer.SetStrokesType(strokes, System.Windows.Ink.StrokeType.Drawing);
-
-            AnalysisAlternate analysisAlternate = null;
-            int strokesCount = strokes.Count;
-            var sfsaf = analyzer.Analyze();
-            if (sfsaf.Successful)
+            using (var analyzer = new InkAnalyzer())
             {
-                var alternates = analyzer.GetAlternates();
-                if (alternates.Count > 0)
+                analyzer.AddStrokes(strokes);
+                analyzer.SetStrokesType(strokes, System.Windows.Ink.StrokeType.Drawing);
+
+                AnalysisAlternate analysisAlternate = null;
+                int strokesCount = strokes.Count;
+                var analysisResult = analyzer.Analyze();
+                if (analysisResult.Successful)
                 {
-                    while ((!alternates[0].Strokes.Contains(strokes.Last()) ||
-                        !IsContainShapeType(((InkDrawingNode)alternates[0].AlternateNodes[0]).GetShapeName()))
-                        && strokesCount >= 2)
+                    var alternates = analyzer.GetAlternates();
+                    if (alternates.Count > 0)
                     {
-                        analyzer.RemoveStroke(strokes[strokes.Count - strokesCount]);
-                        strokesCount--;
-                        sfsaf = analyzer.Analyze();
-                        if (sfsaf.Successful)
+                        while ((!alternates[0].Strokes.Contains(strokes.Last()) ||
+                            !IsContainShapeType(((InkDrawingNode)alternates[0].AlternateNodes[0]).GetShapeName()))
+                            && strokesCount >= 2)
                         {
-                            alternates = analyzer.GetAlternates();
+                            analyzer.RemoveStroke(strokes[strokes.Count - strokesCount]);
+                            strokesCount--;
+                            analysisResult = analyzer.Analyze();
+                            if (analysisResult.Successful)
+                            {
+                                alternates = analyzer.GetAlternates();
+                            }
                         }
+                        analysisAlternate = alternates[0];
                     }
-                    analysisAlternate = alternates[0];
                 }
+
+                if (analysisAlternate != null && analysisAlternate.AlternateNodes.Count > 0)
+                {
+                    var node = analysisAlternate.AlternateNodes[0] as InkDrawingNode;
+                    return new ShapeRecognizeResult(node.Centroid, node.HotPoints, analysisAlternate, node);
+                }
+
+                return default;
             }
-
-            analyzer.Dispose();
-
-            if (analysisAlternate != null && analysisAlternate.AlternateNodes.Count > 0)
-            {
-                var node = analysisAlternate.AlternateNodes[0] as InkDrawingNode;
-                return new ShapeRecognizeResult(node.Centroid, node.HotPoints, analysisAlternate, node);
-            }
-
-            return default;
         }
 
         public static bool IsContainShapeType(string name)
