@@ -94,11 +94,14 @@ jobs:
           fetch-depth: 0
 
       # 2. 从 build 任务下载安装包产物
+      #    build 任务以 archive: false 上传单个文件，此时 artifact 的名称会被文件名取代
+      #    （Ink-Canvas-Plus_setup_<版本>.exe），故不能再按固定名称 Ink-Canvas-Installer 下载
       - name: Download installer artifact
         uses: actions/download-artifact@v8
         with:
-          name: Ink-Canvas-Installer
+          pattern: Ink-Canvas-Plus_setup_*
           path: ./release-assets
+          merge-multiple: true
 
       # 3. 创建 Release 并上传安装包
       - name: Create Release
@@ -109,7 +112,7 @@ jobs:
             🎉 这是 ${{ github.ref_name }} 版本的自动发布。
 
             更新内容请查看提交历史。
-          files: ./release-assets/*
+          files: ./release-assets/**/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
