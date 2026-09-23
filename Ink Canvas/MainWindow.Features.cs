@@ -1263,11 +1263,27 @@ namespace InkCanvasPlus
 
         public static void ShowNewMessage(string notice, bool isShowImmediately = true)
         {
-            (Application.Current?.Windows.Cast<Window>().FirstOrDefault(window => window is MainWindow) as MainWindow)?.ShowNotification(notice, isShowImmediately);
+            //本方法可能由任意线程调用（例如 App.xaml.cs 的未处理异常回调），
+            //因此必须先回到 UI 线程再访问窗口集合
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null) return;
+
+            _ = dispatcher.InvokeAsync(() =>
+            {
+                (Application.Current.Windows.Cast<Window>().FirstOrDefault(window => window is MainWindow) as MainWindow)?.ShowNotification(notice, isShowImmediately);
+            });
         }
 
         public async void ShowNotification(string notice, bool isShowImmediately = true)
         {
+            //通知会操作 UI 元素，若非 UI 线程调用则转交 UI 线程执行，
+            //避免在未处理异常等场景下二次抛出异常
+            if (!Dispatcher.CheckAccess())
+            {
+                _ = Dispatcher.InvokeAsync(() => ShowNotification(notice, isShowImmediately));
+                return;
+            }
+
             lastNotificationShowTime = Environment.TickCount;
 
             GridNotifications.Visibility = Visibility.Visible;
