@@ -264,8 +264,10 @@ namespace InkCanvasPlus
             if (!_isRulerDragging) return;
 
             var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            WpfCanvas.SetLeft(RulerBorder, Clamp(p.X - _rulerDragOffset.X, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - RulerBorder.ActualWidth)));
-            WpfCanvas.SetTop(RulerBorder, Clamp(p.Y - _rulerDragOffset.Y, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - RulerBorder.ActualHeight - 80)));
+            var origin = ClampToolOrigin(new Point(p.X - _rulerDragOffset.X, p.Y - _rulerDragOffset.Y),
+                RulerBorder.Width, RulerBorder.Height, 0, RulerBorder.Height / 2.0, _rulerAngleDeg);
+            WpfCanvas.SetLeft(RulerBorder, origin.X);
+            WpfCanvas.SetTop(RulerBorder, origin.Y);
             e.Handled = true;
         }
 
@@ -298,8 +300,11 @@ namespace InkCanvasPlus
         private void RulerRotateHandle_MouseMove(object sender, MouseEventArgs e)
         {
             if (!_isRulerRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            _rulerAngleDeg = GetPointerAngle(e.GetPosition(GeometryToolsOverlayCanvas)) - _rulerRotateOffsetDeg;
+            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
+            _rulerAngleDeg = GetPointerAngle(pointer) - _rulerRotateOffsetDeg;
             ApplyRulerTransform();
+            KeepToolInsideCanvas(RulerBorder, RulerBorder.Width, RulerBorder.Height, 0, RulerBorder.Height / 2.0, _rulerAngleDeg);
+            _rulerRotateOffsetDeg = GetPointerAngle(pointer) - _rulerAngleDeg;
             e.Handled = true;
         }
 
@@ -377,8 +382,10 @@ namespace InkCanvasPlus
 
             if (!_isTriangleDragging || e.LeftButton != MouseButtonState.Pressed) return;
             var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            WpfCanvas.SetLeft(TriangleBorder, Clamp(p.X - _triangleDragOffset.X, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - TriangleBorder.ActualWidth)));
-            WpfCanvas.SetTop(TriangleBorder, Clamp(p.Y - _triangleDragOffset.Y, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - TriangleBorder.ActualHeight - 80)));
+            var origin = ClampToolOrigin(new Point(p.X - _triangleDragOffset.X, p.Y - _triangleDragOffset.Y),
+                TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
+            WpfCanvas.SetLeft(TriangleBorder, origin.X);
+            WpfCanvas.SetTop(TriangleBorder, origin.Y);
             e.Handled = true;
         }
 
@@ -410,8 +417,11 @@ namespace InkCanvasPlus
         private void TriangleRotateHandle_MouseMove(object sender, MouseEventArgs e)
         {
             if (!_isTriangleRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            _triangleAngleDeg = GetPointerAngleAround(GetTrianglePivotWorld(), e.GetPosition(GeometryToolsOverlayCanvas)) - _triangleRotateOffsetDeg;
+            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
+            _triangleAngleDeg = GetPointerAngleAround(GetTrianglePivotWorld(), pointer) - _triangleRotateOffsetDeg;
             ApplyTriangleTransform();
+            KeepToolInsideCanvas(TriangleBorder, TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
+            _triangleRotateOffsetDeg = GetPointerAngleAround(GetTrianglePivotWorld(), pointer) - _triangleAngleDeg;
             e.Handled = true;
         }
 
@@ -497,8 +507,11 @@ namespace InkCanvasPlus
             var p = e.GetPosition(GeometryToolsOverlayCanvas);
             if (Math.Abs(p.X - _protractorPressPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
                 Math.Abs(p.Y - _protractorPressPoint.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-            WpfCanvas.SetLeft(ProtractorBorder, Clamp(p.X - _protractorDragOffset.X, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - ProtractorBorder.ActualWidth)));
-            WpfCanvas.SetTop(ProtractorBorder, Clamp(p.Y - _protractorDragOffset.Y, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - ProtractorBorder.ActualHeight - 80)));
+            var pivotLocal = GetProtractorPivotLocal();
+            var origin = ClampToolOrigin(new Point(p.X - _protractorDragOffset.X, p.Y - _protractorDragOffset.Y),
+                ProtractorBorder.Width, ProtractorBorder.Height, pivotLocal.X, pivotLocal.Y, _protractorAngleDeg);
+            WpfCanvas.SetLeft(ProtractorBorder, origin.X);
+            WpfCanvas.SetTop(ProtractorBorder, origin.Y);
             e.Handled = true;
         }
 
@@ -521,8 +534,11 @@ namespace InkCanvasPlus
         private void ProtractorRotateHandle_MouseMove(object sender, MouseEventArgs e)
         {
             if (!_isProtractorRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            _protractorAngleDeg = NormalizeAngle(GetPointerAngleAround(GetProtractorPivotWorld(), e.GetPosition(GeometryToolsOverlayCanvas)) - _protractorRotateOffsetDeg);
+            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
+            _protractorAngleDeg = NormalizeAngle(GetPointerAngleAround(GetProtractorPivotWorld(), pointer) - _protractorRotateOffsetDeg);
             ApplyProtractorTransform();
+            KeepProtractorInsideCanvas();
+            _protractorRotateOffsetDeg = GetPointerAngleAround(GetProtractorPivotWorld(), pointer) - _protractorAngleDeg;
             e.Handled = true;
         }
 
@@ -565,6 +581,7 @@ namespace InkCanvasPlus
             var step = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift ? 1.0 : 0.1;
             _protractorAngleDeg = NormalizeAngle(_protractorAngleDeg + (e.Delta > 0 ? step : -step));
             ApplyProtractorTransform();
+            KeepProtractorInsideCanvas();
             e.Handled = true;
         }
 
@@ -705,8 +722,10 @@ namespace InkCanvasPlus
 
         private void MoveTrianglePivotTo(Point pivot)
         {
-            WpfCanvas.SetLeft(TriangleBorder, Clamp(pivot.X - GeometryTrianglePivotLocal, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - TriangleBorder.Width)));
-            WpfCanvas.SetTop(TriangleBorder, Clamp(pivot.Y - GeometryTrianglePivotLocal, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - TriangleBorder.Height - 80)));
+            var origin = ClampToolOrigin(new Point(pivot.X - GeometryTrianglePivotLocal, pivot.Y - GeometryTrianglePivotLocal),
+                TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
+            WpfCanvas.SetLeft(TriangleBorder, origin.X);
+            WpfCanvas.SetTop(TriangleBorder, origin.Y);
         }
 
         private void UpdateProtractorGeometry()
@@ -818,8 +837,10 @@ namespace InkCanvasPlus
         private void MoveProtractorPivotTo(Point pivot)
         {
             var local = GetProtractorPivotLocal();
-            WpfCanvas.SetLeft(ProtractorBorder, Clamp(pivot.X - local.X, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - ProtractorBorder.Width)));
-            WpfCanvas.SetTop(ProtractorBorder, Clamp(pivot.Y - local.Y, 0, Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - ProtractorBorder.Height - 80)));
+            var origin = ClampToolOrigin(new Point(pivot.X - local.X, pivot.Y - local.Y),
+                ProtractorBorder.Width, ProtractorBorder.Height, local.X, local.Y, _protractorAngleDeg);
+            WpfCanvas.SetLeft(ProtractorBorder, origin.X);
+            WpfCanvas.SetTop(ProtractorBorder, origin.Y);
         }
 
         private void ApplyProtractorTransform()
@@ -1100,6 +1121,84 @@ namespace InkCanvasPlus
             var normalized = angle % 360.0;
             if (normalized < 0) normalized += 360.0;
             return normalized;
+        }
+
+        /// <summary>
+        /// 计算尺具绕自身旋转中心旋转后，在覆盖层坐标系中相对自身左上角原点 (Left, Top) 的实际占据范围。
+        /// </summary>
+        /// <param name="width">尺具未旋转时的宽度</param>
+        /// <param name="height">尺具未旋转时的高度</param>
+        /// <param name="pivotX">旋转中心在尺具内部的 X 坐标</param>
+        /// <param name="pivotY">旋转中心在尺具内部的 Y 坐标</param>
+        /// <param name="angleDeg">旋转角度</param>
+        private static Rect GetRotatedVisualBounds(double width, double height, double pivotX, double pivotY, double angleDeg)
+        {
+            var rad = angleDeg * Math.PI / 180.0;
+            var cos = Math.Cos(rad);
+            var sin = Math.Sin(rad);
+            var minX = double.MaxValue;
+            var minY = double.MaxValue;
+            var maxX = double.MinValue;
+            var maxY = double.MinValue;
+            foreach (var corner in new[] { new Point(0, 0), new Point(width, 0), new Point(width, height), new Point(0, height) })
+            {
+                var dx = corner.X - pivotX;
+                var dy = corner.Y - pivotY;
+                var x = pivotX + (dx * cos) - (dy * sin);
+                var y = pivotY + (dx * sin) + (dy * cos);
+                if (x < minX) minX = x;
+                if (x > maxX) maxX = x;
+                if (y < minY) minY = y;
+                if (y > maxY) maxY = y;
+            }
+            return new Rect(minX, minY, maxX - minX, maxY - minY);
+        }
+
+        /// <summary>
+        /// 按尺具旋转后的实际占据范围约束其位置，使尺具整体保留在画布可见区域内。
+        /// </summary>
+        /// <param name="origin">期望的尺具左上角位置</param>
+        /// <param name="width">尺具未旋转时的宽度</param>
+        /// <param name="height">尺具未旋转时的高度</param>
+        /// <param name="pivotX">旋转中心在尺具内部的 X 坐标</param>
+        /// <param name="pivotY">旋转中心在尺具内部的 Y 坐标</param>
+        /// <param name="angleDeg">旋转角度</param>
+        private Point ClampToolOrigin(Point origin, double width, double height, double pivotX, double pivotY, double angleDeg)
+        {
+            var bounds = GetRotatedVisualBounds(width, height, pivotX, pivotY, angleDeg);
+            var maxLeft = Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - bounds.Width);
+            var maxTop = Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - bounds.Height - 80);
+            return new Point(
+                ClampAxis(origin.X, -bounds.X, maxLeft - bounds.X),
+                ClampAxis(origin.Y, -bounds.Y, maxTop - bounds.Y));
+        }
+
+        /// <summary>
+        /// 约束单个坐标轴上的位置。当尺具旋转后的跨度超过画布可用范围时，取靠左上的一侧。
+        /// </summary>
+        private static double ClampAxis(double value, double min, double max)
+        {
+            return max < min ? min : Clamp(value, min, max);
+        }
+
+        /// <summary>
+        /// 按当前旋转角度就地约束尺具位置，使旋转后的尺具仍然完整保留在画布内。
+        /// </summary>
+        private void KeepToolInsideCanvas(Border tool, double width, double height, double pivotX, double pivotY, double angleDeg)
+        {
+            var left = WpfCanvas.GetLeft(tool);
+            var top = WpfCanvas.GetTop(tool);
+            if (double.IsNaN(left)) left = 0;
+            if (double.IsNaN(top)) top = 0;
+            var origin = ClampToolOrigin(new Point(left, top), width, height, pivotX, pivotY, angleDeg);
+            WpfCanvas.SetLeft(tool, origin.X);
+            WpfCanvas.SetTop(tool, origin.Y);
+        }
+
+        private void KeepProtractorInsideCanvas()
+        {
+            var pivot = GetProtractorPivotLocal();
+            KeepToolInsideCanvas(ProtractorBorder, ProtractorBorder.Width, ProtractorBorder.Height, pivot.X, pivot.Y, _protractorAngleDeg);
         }
 
         private static double Clamp(double value, double min, double max)
