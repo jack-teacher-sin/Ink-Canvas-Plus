@@ -1,0 +1,69 @@
+<Window x:Class="InkCanvasPlus.CameraWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        mc:Ignorable="d"
+        ui:ThemeManager.RequestedTheme="Light"
+        FontFamily="Microsoft YaHei UI"
+        WindowStartupLocation="CenterScreen"
+        Title="展台" Height="620" Width="760" MinHeight="420" MinWidth="560"
+        Topmost="True"
+        Loaded="Window_Loaded" Closing="Window_Closing" PreviewKeyDown="Window_PreviewKeyDown">
+    <Grid x:Name="RootGrid" Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 设备选择 -->
+        <StackPanel x:Name="StackPanelDevice" Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="设备" VerticalAlignment="Center" Width="40" />
+            <ComboBox x:Name="ComboBoxDevice" Width="360" VerticalContentAlignment="Center"
+                      SelectionChanged="ComboBoxDevice_SelectionChanged" />
+            <Button x:Name="ButtonRefresh" Content="刷新" Width="64" Margin="8,0,0,0" Click="ButtonRefresh_Click"
+                    ToolTip="重新枚举展台设备（插拔后点这里）" />
+            <TextBlock Text="分辨率" VerticalAlignment="Center" Margin="16,0,4,0" />
+            <ComboBox x:Name="ComboBoxResolution" Width="150" VerticalContentAlignment="Center"
+                      SelectionChanged="ComboBoxResolution_SelectionChanged"
+                      ToolTip="预览与抓拍都使用此分辨率（切换会重新打开设备）" />
+        </StackPanel>
+
+        <!-- 预览区 -->
+        <Border x:Name="BorderPreview" Grid.Row="1" Background="Black" CornerRadius="6" ClipToBounds="True"
+                MouseLeftButtonDown="BorderPreview_MouseLeftButtonDown">
+            <Grid>
+                <Image x:Name="ImagePreview" Stretch="Uniform" SnapsToDevicePixels="True"
+                       RenderOptions.BitmapScalingMode="LowQuality" />
+                <Border x:Name="BorderFrozenBadge" Visibility="Collapsed" HorizontalAlignment="Right"
+                        VerticalAlignment="Top" Margin="12" Padding="10,4" CornerRadius="12"
+                        Background="#CC1F1F1F" IsHitTestVisible="False">
+                    <TextBlock Text="已冻结" Foreground="White" FontSize="12" />
+                </Border>
+                <TextBlock x:Name="TextBlockPreviewHint" Text="未选择设备" Foreground="#B0B0B0"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap"
+                           TextAlignment="Center" Margin="20" />
+            </Grid>
+        </Border>
+
+        <!-- 控制条 -->
+        <StackPanel x:Name="StackPanelControls" Grid.Row="2" Margin="0,8,0,0">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="ButtonSnapshot" Content="抓拍" Width="88" Height="34" FontWeight="Bold"
+                        Click="ButtonSnapshot_Click" ToolTip="抓拍当前画面并贴到画布（窗口保持打开，可连续抓拍）" />
+                <Button x:Name="ButtonFreeze" Content="冻结" Width="72" Height="34" Margin="8,0,0,0"
+                        Click="ButtonFreeze_Click" ToolTip="定格当前画面便于讲解，可随时恢复实时" />
+                <Button x:Name="ButtonFullScreen" Content="全屏" Width="72" Height="34" Margin="8,0,0,0"
+                        Click="ButtonFullScreen_Click" ToolTip="全屏显示，Esc 退出" />
+                <Button x:Name="ButtonDeviceSettings" Content="设备设置" Width="88" Height="34" Margin="8,0,0,0"
+                        Click="ButtonDeviceSettings_Click"
+                        ToolTip="打开展台驱动自带的属性页（亮度、曝光、对焦等）" />
+            </StackPanel>
+
+            <TextBlock x:Name="TextBlockStatus" Foreground="#666666" Margin="0,8,0,0" TextWrapping="Wrap"
+                       Text="正在初始化…" />
+        </StackPanel>
+    </Grid>
+</Window>

@@ -12,6 +12,8 @@ namespace InkCanvasPlus
         public Automation Automation { get; set; } = new Automation();
         [JsonProperty("behavior")]
         public PowerPointSettings PowerPointSettings { get; set; } = new PowerPointSettings();
+        [JsonProperty("camera")]
+        public Camera Camera { get; set; } = new Camera();
         [JsonProperty("canvas")]
         public Canvas Canvas { get; set; } = new Canvas();
         [JsonProperty("gesture")]
@@ -49,6 +51,24 @@ namespace InkCanvasPlus
         Yes,
         No,
         Ask
+    }
+
+    public class Camera
+    {
+        // 用 MonikerString 而不是设备名记住展台：两台同型号设备的名字会完全相同
+        [JsonProperty("deviceMoniker")]
+        public string DeviceMoniker { get; set; } = "";
+        [JsonProperty("deviceName")]
+        public string DeviceName { get; set; } = "";
+        // 形如 "1280x720"；空串表示用设备默认分辨率
+        [JsonProperty("videoResolution")]
+        public string VideoResolution { get; set; } = "";
+        // 画布上同时保留的展台画面张数上限。照片是临时对象不落盘，但 32 位进程
+        // 地址空间有限（一张 1080p 位图约 8MB），必须设上限。
+        [JsonProperty("maxSnapshots")]
+        public int MaxSnapshots { get; set; } = 8;
+        [JsonProperty("isCameraTopmost")]
+        public bool IsCameraTopmost { get; set; } = true;
     }
 
     public class Gesture

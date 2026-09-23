@@ -81,6 +81,9 @@
 		</Reference>
 	</ItemGroup>
 	<ItemGroup>
+		<PackageReference Include="AForge.Video.DirectShow">
+			<Version>2.2.5</Version>
+		</PackageReference>
 		<PackageReference Include="Autoupdater.NET.Official">
 			<Version>1.9.2</Version>
 		</PackageReference>

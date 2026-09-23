@@ -705,6 +705,9 @@ namespace InkCanvasPlus
                 UnregisterHotKey(helper.Handle, HOTKEY_ID);
                 ComponentDispatcher.ThreadPreprocessMessage -= ComponentDispatcher_ThreadPreprocessMessage;
 
+                // 主动关掉展台窗口，确保采集停止、摄像头设备立刻释放
+                CloseCameraWindow();
+
                 e.Cancel = false;
                 return;
             }
@@ -1416,6 +1419,9 @@ namespace InkCanvasPlus
 
             ClearStrokes(false);
             inkCanvas.Children.Clear();
+            // 照片也是这一页的内容，「清屏」就该把它一起清干净，
+            // 只清墨迹而留下实物照片会让人以为没清掉
+            ClearCameraSnapshots();
 
             CancelSingleFingerDragMode();
         }

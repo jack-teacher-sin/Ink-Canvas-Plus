@@ -52,6 +52,9 @@ Name: "migratenames"; Description: "抽奖名单 (&L)"; GroupDescription: "从 W
 
 [Files]
 Source: "..\Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\Ink Canvas\bin\Release\AForge.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\Ink Canvas\bin\Release\AForge.Video.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\Ink Canvas\bin\Release\AForge.Video.DirectShow.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Ink Canvas\bin\Release\AutoUpdater.NET.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Ink Canvas\bin\Release\IACore.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\Ink Canvas\bin\Release\IALoader.dll"; DestDir: "{app}"; Flags: ignoreversion
