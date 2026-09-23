@@ -82,6 +82,8 @@ namespace InkCanvasPlus
         public bool IsTransparentButtonBackground { get; set; } = true;
         [JsonProperty("isAutoCollapseFloatBar")]
         public bool IsAutoCollapseFloatBar { get; set; } = false;
+        [JsonProperty("isFloatBarShowOnRight")]
+        public bool IsFloatBarShowOnRight { get; set; } = false;
         [JsonProperty("isShowExitButton")]
         public bool IsShowExitButton { get; set; } = true;
         [JsonProperty("isShowEraserButton")]
@@ -92,14 +94,20 @@ namespace InkCanvasPlus
         public bool IsShowLRSwitchButton { get; set; } = false;
         [JsonProperty("isShowModeFingerToggleSwitch")]
         public bool IsShowModeFingerToggleSwitch { get; set; } = true;
+        [JsonProperty("isRememberFloatBarPosition")]
+        public bool IsRememberFloatBarPosition { get; set; } = false;
         [JsonProperty("theme")]
         public int Theme { get; set; } = 5;
+        [JsonProperty("viewboxFloatingBarScaleTransformValue")]
+        public double ViewboxFloatingBarScaleTransformValue { get; set; } = 0.8;
     }
 
     public class PowerPointSettings
     {
         [JsonProperty("isShowPPTNavigation")]
         public bool IsShowPPTNavigation { get; set; } = true;
+        [JsonProperty("isShowVerticalPPTNavigation")]
+        public bool IsShowVerticalPPTNavigation { get; set; } = false;
         [JsonProperty("powerPointSupport")]
         public bool PowerPointSupport { get; set; } = true;
         [JsonProperty("isShowCanvasAtNewSlideShow")]

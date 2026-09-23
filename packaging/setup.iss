@@ -4,7 +4,7 @@
 #define MyAppName "Ink Canvas Plus"
 ; #define MyAppVersion "4.0.0.4"
 #define MyAppPublisher "Clover Yan"
-#define MyAppURL "https://www.khyan.top/apps/Ink-Canvas-Plus"
+#define MyAppURL "https://cloveryan.com/apps/Ink-Canvas-Plus"
 #define MyAppExeName "Ink Canvas.exe"
 #define MyAppAssocName MyAppName + " Strokes"
 #define MyAppAssocExt ".icstk"
@@ -81,7 +81,6 @@ Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey}\shell\open\command"; Value
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\{cm:ProgramOnTheWeb,{#MyAppName}}"; Filename: "{#MyAppURL}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 Name: "{userstartup}\InkCanvas"; Filename: "{app}\{#MyAppExeName}"; Tasks: runonstartup
 
@@ -90,6 +89,9 @@ Filename: "{sys}\taskkill.exe"; Description: "Terminate {#MyAppName}"; Parameter
 Filename: "{sys}\cmd.exe"; Description: "Migrate Settings.json"; Parameters: "/C ""COPY /Y ""{userappdata}\WXRIW\Ink Canvas\Settings.json"" ""{app}"""""; Flags: runhidden; Tasks: migratesettings
 Filename: "{sys}\cmd.exe"; Description: "Migrate Names.txt"; Parameters: "/C ""COPY /Y ""{userappdata}\WXRIW\Ink Canvas\Names.txt"" ""{app}"""""; Flags: runhidden; Tasks: migratenames
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall
+
+[InstallDelete]
+Type: files; Name: "{group}\{cm:ProgramOnTheWeb,{#MyAppName}}.url"
 
 [UninstallDelete]
 Type: files; Name: "{app}\Log.txt"
@@ -102,4 +104,10 @@ Type: files; Name: "{userstartup}\InkCanvas.lnk"
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""{#MyAppExeName}"" /F"; RunOnceId: "KillInkCanvasPlus"; Flags: runhidden
 
 [Messages]
-BeveledLabel=https://khyan.top/ic+ {#MyAppVersion}
+BeveledLabel=https://cloveryan.com/ic+ {#MyAppVersion}
+
+[Code]
+procedure InitializeWizard();
+begin
+  WizardForm.LicenseAcceptedRadio.Checked := True;
+end;

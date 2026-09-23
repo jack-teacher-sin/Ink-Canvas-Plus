@@ -4,6 +4,8 @@
 
 # Ink-Canvas-Plus
 
+[下载上游正式版](https://cloveryan.com/apps/Ink-Canvas-Plus/installer "从 cloveryan.com 下载")
+
 [![QQ 群 996760298](https://img.shields.io/badge/QQ%20群-996760298-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=KBN8I8M6E24RFoeFw7FNlXdGpOQybxTW&authKey=CNheMzaibvP5cGRwSGP9HTLiTQtpFfPwySrJ0%2BpoCYYF22JqhINFi3Mi8lNLuXCV&noverify=0&group_code=996760298) ![GitHub issues](https://img.shields.io/github/issues/clover-yan/Ink-Canvas-Plus?logo=github)
 
 Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和演示批注场景。支持笔触输入、几何作图、PowerPoint 批注、计时器、随机点名等功能。
@@ -49,6 +51,17 @@ Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和�
 请检查你的电脑上是否安装了 `.Net Framework 4.7.2` 或更高版本。若没有，请[前往官网](https://dotnet.microsoft.com/zh-cn/download/dotnet-framework/thank-you/net472-offline-installer "下载 .Net Framework 4.7.2")下载安装。
 
 如果仍无法运行，请[安装 `Microsoft Office`](https://www.coolhub.top/archives/11)。
+
+### 我该在何处提出功能需求和错误报告？
+
+1. GitHub Issues  
+   功能请求：https://github.com/clover-yan/Ink-Canvas-Plus/labels/enhancement/new  
+   错误报告：https://github.com/clover-yan/Ink-Canvas-Plus/labels/bug/new
+2. [加入 QQ 群组](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=KBN8I8M6E24RFoeFw7FNlXdGpOQybxTW&authKey=CNheMzaibvP5cGRwSGP9HTLiTQtpFfPwySrJ0%2BpoCYYF22JqhINFi3Mi8lNLuXCV&noverify=0&group_code=996760298)：996760298
+3. 联系作者  
+   [查看联系方式](https://cloveryan.com/ "联系作者")。请附上复现此问题的操作步骤，等待回复。
+
+以上均为上游项目的反馈渠道；本分支特有的改动请在本仓库提交 Issue。
 
 ## 感谢
 

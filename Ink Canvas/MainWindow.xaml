@@ -35,7 +35,10 @@
         <RoutedUICommand x:Key="HotKey_Capture" Text=" " />
         <RoutedUICommand x:Key="HotKey_Hide" Text=" " />
         <RoutedUICommand x:Key="HotKey_ChangeMode" Text=" " />
+        <RoutedUICommand x:Key="HotKey_ChangeModeToPen" Text=" " />
+        <RoutedUICommand x:Key="HotKey_ChangeModeToMouse" Text=" " />
         <RoutedUICommand x:Key="HotKey_ChangeToEraser" Text=" " />
+        <RoutedUICommand x:Key="HotKey_ChangeToLasso" Text=" " />
         <RoutedUICommand x:Key="HotKey_ChangeToPen0" Text=" " />
         <RoutedUICommand x:Key="HotKey_ChangeToPen1" Text=" " />
         <RoutedUICommand x:Key="HotKey_ChangeToPen2" Text=" " />
@@ -47,6 +50,8 @@
         <RoutedUICommand x:Key="HotKey_DrawCircle" Text=" " />
         <RoutedUICommand x:Key="HotKey_SwitchToBoard" Text=" " />
         <RoutedUICommand x:Key="HotKey_ClearAll" Text=" " />
+        <RoutedUICommand x:Key="HotKey_ToggleFloatBarPosition" Text=" " />
+        <RoutedUICommand x:Key="HotKey_ToggleMarker" Text=" " />
     </Window.Resources>
     <!--输入命令绑定-->
     <Window.InputBindings>
@@ -54,9 +59,10 @@
         <KeyBinding Modifiers="Control" Key="Z" Command="{StaticResource Undo_HotKey_Command}" />
         <KeyBinding Modifiers="Control" Key="Y" Command="{StaticResource Redo_HotKey_Command}" />
         <KeyBinding Modifiers="Control+Shift" Key="Z" Command="{StaticResource Redo_HotKey_Command}" />
-        <KeyBinding Modifiers="Alt" Key="S" Command="{StaticResource HotKey_ChangeMode}" />
-        <KeyBinding Modifiers="Alt" Key="D" Command="{StaticResource HotKey_ChangeMode}" />
+        <KeyBinding Modifiers="Alt" Key="D" Command="{StaticResource HotKey_ChangeModeToPen}" />
+        <KeyBinding Modifiers="Alt" Key="S" Command="{StaticResource HotKey_ChangeModeToMouse}" />
         <KeyBinding Modifiers="Alt" Key="E" Command="{StaticResource HotKey_ChangeToEraser}" />
+        <KeyBinding Modifiers="Alt" Key="Q" Command="{StaticResource HotKey_ChangeToLasso}" />
         <KeyBinding Modifiers="Alt" Key="C" Command="{StaticResource HotKey_Capture}" />
         <KeyBinding Modifiers="Alt" Key="OemTilde" Command="{StaticResource HotKey_ChangeToPen0}" />
         <KeyBinding Modifiers="Alt" Key="D1" Command="{StaticResource HotKey_ChangeToPen1}" />
@@ -71,6 +77,8 @@
         <KeyBinding Key="B" Command="{StaticResource HotKey_SwitchToBoard}" />
         <KeyBinding Modifiers="Alt" Key="B" Command="{StaticResource HotKey_SwitchToBoard}" />
         <KeyBinding Modifiers="Alt" Key="X" Command="{StaticResource HotKey_ClearAll}" />
+        <KeyBinding Modifiers="Alt" Key="T" Command="{StaticResource HotKey_ToggleFloatBarPosition}" />
+        <KeyBinding Modifiers="Alt" Key="M" Command="{StaticResource HotKey_ToggleMarker}" />
     </Window.InputBindings>
     <!--命令执行方法绑定-->
     <Window.CommandBindings>
@@ -86,9 +94,18 @@
         <CommandBinding Command="{StaticResource HotKey_ChangeMode}"
                         CanExecute="CommandBinding_CanExecute"
                         Executed="KeyChangeMode" />
+        <CommandBinding Command="{StaticResource HotKey_ChangeModeToPen}"
+                        CanExecute="CommandBinding_CanExecute"
+                        Executed="KeyChangeModeToPen" />
+        <CommandBinding Command="{StaticResource HotKey_ChangeModeToMouse}"
+                        CanExecute="CommandBinding_CanExecute"
+                        Executed="KeyChangeModeToMouse" />
         <CommandBinding Command="{StaticResource HotKey_ChangeToEraser}"
                         CanExecute="CommandBinding_CanExecute"
                         Executed="KeyChangeToEraser" />
+        <CommandBinding Command="{StaticResource HotKey_ChangeToLasso}"
+                        CanExecute="CommandBinding_CanExecute"
+                        Executed="KeyChangeToLasso" />
         <CommandBinding Command="{StaticResource HotKey_Capture}"
                         CanExecute="CommandBinding_CanExecute"
                         Executed="KeyCapture" />
@@ -128,6 +145,12 @@
         <CommandBinding Command="{StaticResource HotKey_ClearAll}"
                         CanExecute="CommandBinding_CanExecute"
                         Executed="KeyClearAll" />
+        <CommandBinding Command="{StaticResource HotKey_ToggleFloatBarPosition}"
+                        CanExecute="CommandBinding_CanExecute"
+                        Executed="KeyToggleFloatBarPosition" />
+        <CommandBinding Command="{StaticResource HotKey_ToggleMarker}"
+                        CanExecute="CommandBinding_CanExecute"
+                        Executed="KeyToggleMarker" />
     </Window.CommandBindings>
     <Grid x:Name="Main_Grid" Background="#01FFFFFF">
         <Grid Name="GridBackgroundCoverHolder">
@@ -287,6 +310,7 @@
         <Grid Visibility="{Binding ElementName=inkCanvas, Path=Visibility}">
             <Grid Name="GridInkCanvasSelectionCover"
                   MouseDown="GridInkCanvasSelectionCover_MouseDown"
+                  MouseMove="GridInkCanvasSelectionCover_MouseMove"
                   MouseUp="GridInkCanvasSelectionCover_MouseUp"
                   IsManipulationEnabled="True"
                   ManipulationStarting="GridInkCanvasSelectionCover_ManipulationStarting"
@@ -634,11 +658,26 @@
                                     </Grid.RowDefinitions>
                                 </Grid>
                                 <StackPanel Orientation="Vertical" Margin="0,-12,0,0">
-                                    <Image Grid.Column="0" Grid.Row="0" Width="64" Height="64" Stretch="Uniform">
-                                        <Image.Source>
-                                            <BitmapImage DecodePixelWidth="60" DecodePixelHeight="60" UriSource="pack://application:,,,/Resources/InkCanvas.png" />
-                                        </Image.Source>
-                                    </Image>
+                                    <Grid HorizontalAlignment="Center">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Ellipse Grid.Column="0" Grid.Row="0" Width="60" Height="60" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="2">
+                                            <Ellipse.Fill>
+                                                <ImageBrush Stretch="UniformToFill">
+                                                    <ImageBrush.ImageSource>
+                                                        <BitmapImage UriSource="pack://application:,,,/Resources/Clover Yan.png" DecodePixelWidth="120" DecodePixelHeight="120" />
+                                                    </ImageBrush.ImageSource>
+                                                </ImageBrush>
+                                            </Ellipse.Fill>
+                                        </Ellipse>
+                                        <Image Grid.Column="1" Grid.Row="0" Width="64" Height="64" Stretch="Uniform">
+                                            <Image.Source>
+                                                <BitmapImage DecodePixelWidth="128" DecodePixelHeight="128" UriSource="pack://application:,,,/Resources/InkCanvas.png" />
+                                            </Image.Source>
+                                        </Image>
+                                    </Grid>
                                     <TextBlock HorizontalAlignment="Center" FontWeight="Bold" FontSize="20" Text="Ink Canvas Plus" />
                                     <TextBlock HorizontalAlignment="Center" FontSize="14" Text="Ink Canvas 的浴火重生版" />
                                     <TextBlock Grid.Column="1" Grid.Row="0" FontSize="14" TextWrapping="Wrap" TextAlignment="Center" Opacity="0.65" Margin="0,12,0,0">
@@ -683,7 +722,10 @@
                                         </Canvas>
                                         <TextBlock Margin="8,0,0,0" FontSize="14" Text="少安毋躁，正在检查更新…" />
                                     </StackPanel>
-                                    <Button Name="BtnCheckForUpdate" Content="检查更新" HorizontalAlignment="Center" Width="100" FontFamily="Microsoft YaHei UI" Click="BtnCheckForUpdate_Click" Margin="0,0,0,10" />
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button Name="BtnLearnMore" Content="了解此版本" Width="100" FontFamily="Microsoft YaHei UI" Click="BtnLearnMore_Click" Margin="5" />
+                                        <Button Name="BtnCheckForUpdate" Content="检查更新" Width="100" FontFamily="Microsoft YaHei UI" Click="BtnCheckForUpdate_Click" Margin="5" />
+                                    </StackPanel>
                                 </StackPanel>
                                 <ui:SimpleStackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
                                     <Canvas Width="20" Height="20">
@@ -755,6 +797,7 @@
                         </GroupBox>
                         <GroupBox Header="画板">
                             <ui:SimpleStackPanel Spacing="12">
+                                <Button Name="BtnColorConfig" Content="配置画笔颜色…" FontFamily="Microsoft YaHei UI" Click="BtnColorConfig_Click" />
                                 <StackPanel Orientation="Horizontal">
                                     <Slider x:Name="InkWidthSlider"
                                             HorizontalAlignment="Left"
@@ -785,6 +828,8 @@
                                 </ComboBox>
                                 <TextBlock Text="橡皮大小" FontFamily="Microsoft YaHei UI" FontSize="14" />
                                 <ComboBox Name="ComboBoxEraserSize" FontFamily="Microsoft YaHei UI" SelectedIndex="0" SelectionChanged="ComboBoxEraserSize_SelectionChanged">
+                                    <ComboBoxItem Content="极小" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="很小" FontFamily="Microsoft YaHei UI" />
                                     <ComboBoxItem Content="小（默认）" FontFamily="Microsoft YaHei UI" />
                                     <ComboBoxItem Content="较小" FontFamily="Microsoft YaHei UI" />
                                     <ComboBoxItem Content="中" FontFamily="Microsoft YaHei UI" />
@@ -857,8 +902,11 @@
                         <GroupBox Name="GroupBoxAppearanceNewUI" Header="外观">
                             <ui:SimpleStackPanel Spacing="12">
                                 <ui:ToggleSwitch Name="ToggleSwitchAutoCollapseFloatBar" Header="自动折叠浮动栏" IsOn="False" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchAutoCollapseFloatBar_Toggled" />
+                                <ui:ToggleSwitch Name="ToggleSwitchFloatBarShowOnRight" Header="浮动栏显示在右侧" IsOn="False" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchFloatBarShowOnRight_Toggled" />
+                                <ui:ToggleSwitch Name="ToggleSwitchRememberFloatBarPosition" Header="记忆浮动栏位置" IsOn="False" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchRememberFloatBarPosition_Toggled" />
                                 <ui:ToggleSwitch Header="显示“橡皮”按钮" IsOn="{Binding ElementName=ToggleSwitchShowButtonEraser, Path=IsOn}" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" />
-                                <ui:ToggleSwitch Name="ToggleSwitchShowButtonPPTNavigation" Header="显示 PPT 浏览切页按钮" IsOn="True" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchShowButtonPPTNavigation_OnToggled" />
+                                <ui:ToggleSwitch Name="ToggleSwitchShowButtonPPTNavigation" Header="显示水平 PPT 导航按钮" IsOn="True" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchShowButtonPPTNavigation_OnToggled" />
+                                <ui:ToggleSwitch Name="ToggleSwitchShowVerticalPPTNavigation" Header="显示垂直 PPT 导航按钮" IsOn="True" FontFamily="Microsoft YaHei UI" OnContent="开" OffContent="关" Toggled="ToggleSwitchShowVerticalPPTNavigation_OnToggled" />
                                 <TextBlock Text="颜色主题" FontFamily="Microsoft YaHei UI" FontSize="14" />
                                 <ComboBox Name="ComboBoxTheme" FontFamily="Microsoft YaHei UI" SelectedIndex="0" SelectionChanged="ComboBoxTheme_SelectionChanged">
                                     <ComboBoxItem Content="浅色（经典）" FontFamily="Microsoft YaHei UI" />
@@ -873,7 +921,26 @@
                                     <ComboBoxItem Content="Plus 朱砂红 - 浅色" FontFamily="Microsoft YaHei UI" />
                                     <ComboBoxItem Content="Plus 朱砂红 - 深色" FontFamily="Microsoft YaHei UI" />
                                     <ComboBoxItem Content="Plus 朱砂红 - 跟随系统" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 太空蓝 - 浅色" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 太空蓝 - 深色" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 太空蓝 - 跟随系统" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 金秋黄 - 浅色" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 金秋黄 - 深色" FontFamily="Microsoft YaHei UI" />
+                                    <ComboBoxItem Content="Plus 金秋黄 - 跟随系统" FontFamily="Microsoft YaHei UI" />
                                 </ComboBox>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="FloatingBarScaleSlider"
+                                            HorizontalAlignment="Left"
+                                            Minimum="50" Maximum="100"
+                                            Width="320" FontFamily="Microsoft YaHei UI"
+                                            ui:ControlHelper.Header="工具栏图标缩放"
+                                            IsSnapToTickEnabled="True" Value="100"
+                                            TickFrequency="5" TickPlacement="Both"
+                                            ValueChanged="FloatingBarScaleSlider_ValueChanged" />
+                                    <TextBlock Text="{Binding Value, ElementName=FloatingBarScaleSlider, Mode=OneWay}"
+                                               VerticalAlignment="Bottom" Margin="10,0,0,8"
+                                               FontSize="14" Width="25" HorizontalAlignment="Center" />
+                                </StackPanel>
                             </ui:SimpleStackPanel>
                         </GroupBox>
                         <GroupBox Header="PowerPoint 相关">
@@ -959,7 +1026,7 @@
                         </GroupBox>
 
                         <GroupBox Header="快捷键指南">
-                            <TextBlock TextWrapping="Wrap" Text="全局快捷键&#x000A;• Ctrl+Alt+D：激活 Ink Canvas Plus 并切换书写／鼠标模式&#x000A;&#x000A;应用内快捷键&#x000A;• Alt+V：展开或收起工具栏&#x000A;• Alt+D, Alt+S：切换书写／鼠标模式&#x000A;• Alt+`, Alt+1–5：切换画笔颜色&#x000A;• Alt+L：使用直线工具&#x000A;• Alt+R：使用矩形工具&#x000A;• Alt+O：使用圆形工具&#x000A;• Alt+E：切换橡皮擦&#x000A;• Ctrl+Z：撤销上一步&#x000A;• Ctrl+Shift+Z, Ctrl+Y：重做&#x000A;• Alt+X：清空所有笔迹&#x000A;• Alt+C：屏幕截图&#x000A;• B, Alt+B：进入／退出黑板模式" />
+                            <TextBlock TextWrapping="Wrap" Text="全局快捷键&#x000A;• Ctrl+Alt+D：激活 Ink Canvas Plus 并切换书写／鼠标模式&#x000A;&#x000A;应用内快捷键&#x000A;• Alt+V：展开或收起工具栏&#x000A;• Alt+D：切换到书写模式&#x000A;• Alt+S：切换到鼠标模式&#x000A;• Alt+`, Alt+1–5：切换画笔颜色&#x000A;• Alt+L：使用直线工具&#x000A;• Alt+R：使用矩形工具&#x000A;• Alt+O：使用圆形工具&#x000A;• Alt+Q：使用套索工具&#x000A;• Alt+E：切换橡皮擦&#x000A;• Ctrl+Z：撤销上一步&#x000A;• Ctrl+Shift+Z, Ctrl+Y：重做&#x000A;• Alt+X：清除选中笔迹／所有笔迹&#x000A;• Alt+C：屏幕截图&#x000A;• B, Alt+B：进入／退出黑板模式&#x000A;• Alt+M：切换荧光笔&#x000A;• Alt+T：切换浮动工具栏位置" />
                         </GroupBox>
                     </StackPanel>
                 </ui:ScrollViewerEx>
@@ -1120,8 +1187,6 @@
                         Margin="0,10,0,0" Width="{Binding ElementName=StackPanelMain, Path=ActualWidth}"
                         Click="BtnHideControl_Click" Foreground="{Binding ElementName=BtnExit, Path=Foreground}" Background="{Binding ElementName=BtnExit, Path=Background}" />
                 <StackPanel>
-                    <TextBlock Visibility="{Binding ElementName=GroupBoxMASEZVersion, Path=Visibility}" Text="二中专版" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="{Binding ElementName=BtnExit, Path=Foreground}" />
-                    <Image Visibility="{Binding ElementName=GroupBoxMASEZVersion, Path=Visibility}" Source="Resources/logo2.png" Margin="0,-5,0,-15" />
                     <StackPanel x:Name="StackPanelInfo">
                         <TextBlock Text="Developer" FontSize="8.5" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,10,0,0" Foreground="{Binding ElementName=BtnExit, Path=Foreground}" />
                         <TextBlock Text="XY Wang" FontSize="9" HorizontalAlignment="Center" Margin="0,3,0,0" Foreground="{Binding ElementName=BtnExit, Path=Foreground}" />
@@ -1238,46 +1303,92 @@
 
         <Grid Name="GridForRecoverOldUI">
             <Grid Visibility="{Binding ElementName=StackPanelPPTControls, Path=Visibility}">
-                <Viewbox Name="ViewboxPPTSidesControl" Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}" Opacity="0.7" Margin="10" Height="50" HorizontalAlignment="Left" VerticalAlignment="Bottom">
-                    <ui:SimpleStackPanel Orientation="Horizontal" Spacing="5">
-                        <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid Margin="6">
-                                <Image Name="ImagePPTControlPreviousPressed" Visibility="Collapsed" Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideSelected}" />
-                                <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideNormal}" />
-                            </Grid>
-                        </Border>
-                        <Border x:Name="PptNavigationBtn" Width="Auto" MinWidth="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid MouseUp="PPTNavigationBtn_Click">
-                                <TextBlock Name="PptNavigationTextBlock" FontSize="10" Foreground="{DynamicResource FloatBarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" Text="0/0" Margin="2" />
-                            </Grid>
-                        </Border>
-                        <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid Margin="6">
-                                <Image Name="ImagePPTControlNextPressed" Visibility="Collapsed" Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideSelected}" />
-                                <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideNormal}" />
-                            </Grid>
-                        </Border>
-                    </ui:SimpleStackPanel>
-                </Viewbox>
-                <Viewbox Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}" Opacity="{Binding ElementName=ViewboxPPTSidesControl, Path=Opacity}" Margin="10" Height="50" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                    <ui:SimpleStackPanel Orientation="Horizontal" Spacing="5">
-                        <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid Margin="6">
-                                <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideNormal}" />
-                            </Grid>
-                        </Border>
-                        <Border Width="Auto" MinWidth="36" Visibility="{Binding ElementName=PptNavigationBtn, Path=Visibility}" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid MouseUp="PPTNavigationBtn_Click">
-                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding ElementName=PptNavigationTextBlock, Path=Foreground}" FontSize="{Binding ElementName=PptNavigationTextBlock, Path=FontSize}" Text="{Binding ElementName=PptNavigationTextBlock, Path=Text}" Margin="2" />
-                            </Grid>
-                        </Border>
-                        <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
-                            <Grid Margin="6">
-                                <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideNormal}" />
-                            </Grid>
-                        </Border>
-                    </ui:SimpleStackPanel>
-                </Viewbox>
+                <Grid Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}">
+                    <Viewbox Name="ViewboxPPTSidesControl" Opacity="0.7" Margin="10" Height="50" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+                        <ui:SimpleStackPanel Orientation="Horizontal" Spacing="5">
+                            <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Name="ImagePPTControlPreviousPressed" Visibility="Collapsed" Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideSelected}" />
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideNormal}" />
+                                </Grid>
+                            </Border>
+                            <Border x:Name="PptNavigationBtn" Width="Auto" MinWidth="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid MouseUp="PPTNavigationBtn_Click">
+                                    <TextBlock Name="PptNavigationTextBlock" FontSize="10" Foreground="{DynamicResource FloatBarForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" Text="0/0" Margin="2" />
+                                </Grid>
+                            </Border>
+                            <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Name="ImagePPTControlNextPressed" Visibility="Collapsed" Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideSelected}" />
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideNormal}" />
+                                </Grid>
+                            </Border>
+                        </ui:SimpleStackPanel>
+                    </Viewbox>
+                </Grid>
+                <Grid Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}">
+                    <Viewbox Name="ViewboxPPTRightBottom" Opacity="{Binding ElementName=ViewboxPPTSidesControl, Path=Opacity}" Margin="10" Height="50" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                        <ui:SimpleStackPanel Orientation="Horizontal" Spacing="5">
+                            <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalPreviousSlideNormal}" />
+                                </Grid>
+                            </Border>
+                            <Border Width="Auto" MinWidth="36" Visibility="{Binding ElementName=PptNavigationBtn, Path=Visibility}" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid MouseUp="PPTNavigationBtn_Click">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding ElementName=PptNavigationTextBlock, Path=Foreground}" FontSize="{Binding ElementName=PptNavigationTextBlock, Path=FontSize}" Text="{Binding ElementName=PptNavigationTextBlock, Path=Text}" Margin="2" />
+                                </Grid>
+                            </Border>
+                            <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.HorizontalNextSlideNormal}" />
+                                </Grid>
+                            </Border>
+                        </ui:SimpleStackPanel>
+                    </Viewbox>
+                </Grid>
+                <Grid Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}">
+                    <Viewbox Name="ViewboxPPTLeftCenter" Opacity="{Binding ElementName=ViewboxPPTSidesControl, Path=Opacity}" Margin="10" Width="50" HorizontalAlignment="Left" VerticalAlignment="Center">
+                        <ui:SimpleStackPanel Orientation="Vertical" Spacing="5">
+                            <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.PreviousSlideNormal}" />
+                                </Grid>
+                            </Border>
+                            <Border Width="Auto" MinWidth="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid MouseUp="PPTNavigationBtn_Click">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding ElementName=PptNavigationTextBlock, Path=Foreground}" FontSize="{Binding ElementName=PptNavigationTextBlock, Path=FontSize}" Text="{Binding ElementName=PptNavigationTextBlock, Path=Text}" Margin="2" />
+                                </Grid>
+                            </Border>
+                            <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.NextSlideNormal}" />
+                                </Grid>
+                            </Border>
+                        </ui:SimpleStackPanel>
+                    </Viewbox>
+                </Grid>
+                <Grid Visibility="{Binding ElementName=StackPanelPPTButtons, Path=Visibility}">
+                    <Viewbox Name="ViewboxPPTRightCenter" Opacity="{Binding ElementName=ViewboxPPTSidesControl, Path=Opacity}" Margin="10" Width="50" HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <ui:SimpleStackPanel Orientation="Vertical" Spacing="5">
+                            <Border Width="36" MouseUp="GridPPTControlPrevious_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.PreviousSlideNormal}" />
+                                </Grid>
+                            </Border>
+                            <Border Width="Auto" MinWidth="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid MouseUp="PPTNavigationBtn_Click">
+                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{Binding ElementName=PptNavigationTextBlock, Path=Foreground}" FontSize="{Binding ElementName=PptNavigationTextBlock, Path=FontSize}" Text="{Binding ElementName=PptNavigationTextBlock, Path=Text}" Margin="2" />
+                                </Grid>
+                            </Border>
+                            <Border Width="36" MouseUp="GridPPTControlNext_MouseUp" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                                <Grid Margin="6">
+                                    <Image Source="{DynamicResource ResourceKey=SeewoImageSource.NextSlideNormal}" />
+                                </Grid>
+                            </Border>
+                        </ui:SimpleStackPanel>
+                    </Viewbox>
+                </Grid>
             </Grid>
         </Grid>
 
@@ -1286,14 +1397,14 @@
             <Viewbox.LayoutTransform>
                 <ScaleTransform x:Name="ViewboxFloatingBarScaleTransform" ScaleX="1" ScaleY="1" />
             </Viewbox.LayoutTransform>
-            <ui:SimpleStackPanel Orientation="Horizontal">
-                <Border Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}" MouseDown="SymbolIconEmoji_MouseDown" MouseUp="SymbolIconEmoji_MouseUp">
+            <ui:SimpleStackPanel x:Name="StackPanelFloatBarContainer" Orientation="Horizontal">
+                <Border x:Name="BorderFloatingBarEmoji" FlowDirection="LeftToRight" Width="36" Height="36" CornerRadius="18" Background="{DynamicResource FloatBarBackground}" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}" MouseDown="SymbolIconEmoji_MouseDown" MouseUp="SymbolIconEmoji_MouseUp">
                     <ui:SimpleStackPanel Margin="0,5,0,5" Spacing="10" Orientation="Horizontal"
                                          HorizontalAlignment="Center">
                         <ui:SymbolIcon Name="SymbolIconEmoji" Symbol="Emoji2" Foreground="{DynamicResource FloatBarForeground}" />
                     </ui:SimpleStackPanel>
                 </Border>
-                <Border Margin="5,0,0,0" Visibility="Visible" Height="36" Name="BorderFloatingBarMainControls" Background="{DynamicResource FloatBarBackground}" CornerRadius="18" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
+                <Border Margin="5,0,0,0" FlowDirection="LeftToRight" RenderTransformOrigin="0,0.5" Visibility="Visible" Height="36" Name="BorderFloatingBarMainControls" Background="{DynamicResource FloatBarBackground}" CornerRadius="18" BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}">
                     <Border.RenderTransform>
                         <ScaleTransform />
                     </Border.RenderTransform>
@@ -1345,6 +1456,13 @@
                                         Width="{Binding ElementName=BorderPenColorYellow, Path=ActualHeight}">
                                     <Viewbox Name="ViewboxBtnColorWhiteContent" Opacity="0" Margin="6">
                                         <ui:SymbolIcon Symbol="Accept" Foreground="Black" />
+                                    </Viewbox>
+                                </Border>
+                                <Border Name="BorderMarker" Background="Transparent" CornerRadius="100"
+                                        Width="{Binding ElementName=BorderPenColorYellow, Path=ActualHeight}"
+                                        MouseUp="BorderMarker_MouseUp">
+                                    <Viewbox>
+                                        <ui:FontIcon Name="FontIconMarker" FontSize="64" Glyph="&#xED64;" Foreground="{DynamicResource FloatBarForeground}" />
                                     </Viewbox>
                                 </Border>
                             </ui:SimpleStackPanel>
