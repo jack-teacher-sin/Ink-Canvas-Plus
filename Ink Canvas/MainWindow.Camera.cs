@@ -53,6 +53,7 @@ namespace InkCanvasPlus
             public Border ScaleGrip;
             public Border RotateGrip;
             public Border CloseGrip;
+            public Border CropGrip;
             /// <summary>未旋转时的左上角位置与尺寸（照片层坐标系）。</summary>
             public double X, Y, W, H;
             public double AngleDeg;
@@ -177,6 +178,7 @@ namespace InkCanvasPlus
             rec.ScaleGrip = CreateCameraGrip("⤢", Cursors.SizeNWSE, "缩放照片");
             rec.RotateGrip = CreateCameraGrip("↻", Cursors.Hand, "旋转照片");
             rec.CloseGrip = CreateCameraGrip("✕", Cursors.Hand, "删除这张照片", "#FFD93535");
+            rec.CropGrip = CreateCameraSymbolGrip(iNKORE.UI.WPF.Modern.Controls.Symbol.Crop, Cursors.Hand, "裁剪这张照片");
 
             AttachCameraGripHandlers(rec, rec.MoveGrip, CameraDragMode.Move);
             AttachCameraGripHandlers(rec, rec.ScaleGrip, CameraDragMode.Scale);
@@ -186,12 +188,18 @@ namespace InkCanvasPlus
                 RemoveCameraSnapshot(rec);
                 e.Handled = true;
             };
+            rec.CropGrip.MouseLeftButtonUp += (s, e) =>
+            {
+                BeginCameraCrop(rec);
+                e.Handled = true;
+            };
 
             rec.Frame.Children.Add(rec.Outline);
             rec.Frame.Children.Add(rec.MoveGrip);
             rec.Frame.Children.Add(rec.ScaleGrip);
             rec.Frame.Children.Add(rec.RotateGrip);
             rec.Frame.Children.Add(rec.CloseGrip);
+            rec.Frame.Children.Add(rec.CropGrip);
 
             rec.X = (areaW - w) / 2.0;
             rec.Y = (areaH - h) / 2.0;
@@ -238,6 +246,9 @@ namespace InkCanvasPlus
         {
             if (rec == null) return;
 
+            // 正在裁这张就先把裁剪状态收掉，否则会话里会留着一个已经不在画布上的照片
+            if (_cameraCrop != null && ReferenceEquals(_cameraCrop.Target, rec)) EndCameraCrop();
+
             if (ReferenceEquals(_cameraDragTarget, rec))
             {
                 _cameraDragTarget = null;
@@ -254,6 +265,7 @@ namespace InkCanvasPlus
         /// <summary>清屏时一并清除照片：「清屏」的语义是把这一页清干净。</summary>
         private void ClearCameraSnapshots()
         {
+            EndCameraCrop();
             _cameraDragTarget = null;
             _cameraDragMode = CameraDragMode.None;
             foreach (var rec in _cameraSnapshots.ToArray())
@@ -294,6 +306,33 @@ namespace InkCanvasPlus
                 text.Foreground = (Brush)new BrushConverter().ConvertFromString(foreground);
             }
 
+            return CreateCameraGripCore(cursor, tooltip, text);
+        }
+
+        /// <summary>
+        /// 用 iNKORE 那套微软符号字体画手柄图标。
+        /// 尺规那组几何字符里没有像样的"裁剪"，而 Symbol 枚举的取值本身就是
+        /// Segoe MDL2 Assets 的码位（Crop = 0xE123，和 Camera = 0xE114 一致），
+        /// 所以直接取码位交给字体渲染，不用再引一个 SymbolIcon 的默认样式进来。
+        /// </summary>
+        private Border CreateCameraSymbolGrip(iNKORE.UI.WPF.Modern.Controls.Symbol symbol, Cursor cursor, string tooltip)
+        {
+            var text = new TextBlock
+            {
+                Text = char.ConvertFromUtf32((int)symbol),
+                FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                FontSize = 14,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+            };
+            text.SetResourceReference(TextBlock.ForegroundProperty, "FloatBarForeground");
+
+            return CreateCameraGripCore(cursor, tooltip, text);
+        }
+
+        private Border CreateCameraGripCore(Cursor cursor, string tooltip, UIElement child)
+        {
             var grip = new Border
             {
                 Width = CameraSnapshotGripSize,
@@ -302,7 +341,7 @@ namespace InkCanvasPlus
                 BorderThickness = new Thickness(1),
                 Cursor = cursor,
                 ToolTip = tooltip,
-                Child = text,
+                Child = child,
                 SnapsToDevicePixels = true,
             };
             // 用 SetResourceReference（等价于 XAML 的 DynamicResource），
@@ -449,10 +488,15 @@ namespace InkCanvasPlus
 
             // 手柄一律放在照片矩形之外（Frame 不裁剪子元素，负坐标可以正常显示）。
             // 这样手柄既不遮住照片内容，也不会挡住在照片上写字。
+            // 布局：左上删除、上中旋转、右中移动、左中裁剪、右下缩放。
             PlaceCameraGrip(rec.MoveGrip, rec.W + gap, rec.H / 2 - g / 2);
             PlaceCameraGrip(rec.ScaleGrip, rec.W + gap, rec.H + gap);
             PlaceCameraGrip(rec.RotateGrip, rec.W / 2 - g / 2, -g - gap);
             PlaceCameraGrip(rec.CloseGrip, -g - gap, -g - gap);
+            PlaceCameraGrip(rec.CropGrip, -g - gap, rec.H / 2 - g / 2);
+
+            // 正在裁这张照片的话，确认/取消两个按钮也要跟着照片的尺寸走
+            if (_cameraCrop != null && ReferenceEquals(_cameraCrop.Target, rec)) LayoutCameraCropGrips(_cameraCrop);
         }
 
         private static void PlaceCameraGrip(FrameworkElement grip, double left, double top)
