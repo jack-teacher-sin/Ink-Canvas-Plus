@@ -1556,9 +1556,21 @@
                             </Grid>
                             <ui:SymbolIcon Name="SymbolIconSelect" Symbol="SelectAll" Foreground="{DynamicResource FloatBarForeground}" MouseUp="SymbolIconSelect_MouseUp" />
                             <Grid Margin="3,5,0,5" Width="20">
-                                <TextBlock Text="尺" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource FloatBarForeground}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           MouseDown="Border_MouseDown" MouseUp="GeometryToolsButton_MouseUp" ToolTip="尺具" />
+                                <!-- 尺规：直尺 + 三角板。坐标直接照搬 尺规.webp 的 512×512 像素坐标系 -->
+                                <Border Background="Transparent"
+                                        MouseDown="Border_MouseDown" MouseUp="GeometryToolsButton_MouseUp" ToolTip="尺具">
+                                    <Viewbox Width="20" Height="20">
+                                        <Canvas Width="512" Height="512">
+                                            <Path Stroke="{DynamicResource FloatBarForeground}" StrokeThickness="26"
+                                                  StrokeLineJoin="Round" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                  Data="M13,13 H111 V498 H13 Z
+                                                        M13,78 H62 M13,161.5 H62 M13,255.5 H62 M13,349.5 H62 M13,433 H62
+                                                        M156,13 V498 H495 Z
+                                                        M156,156 H197 M156,229.25 H197 M156,302.5 H197 M156,375.75 H197 M156,449 H197
+                                                        M234.5,262 V405.5 H342 Z" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Border>
                                 <Border x:Name="BorderGeometryTools" Visibility="Collapsed"
                                         Background="{DynamicResource FloatBarBackground}" BorderBrush="{DynamicResource FloatBarBorderBrush}"
                                         BorderThickness="1" CornerRadius="18" Margin="-78,-102,-78,30" Height="88">
@@ -1599,9 +1611,40 @@
                             </Grid>
                             <!-- 展台：打开独立的预览/抓拍窗口，不是弹出面板，所以不需要 BorderXxx 那种嵌套 Border -->
                             <Grid Margin="3,5,0,5" Width="20">
-                                <TextBlock Text="展" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource FloatBarForeground}"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           MouseDown="Border_MouseDown" MouseUp="CameraWindowButton_MouseUp" ToolTip="展台" />
+                                <!-- 展台：带镜头的拍摄头 + 悬臂立杆 + 底座。坐标照搬 展台.webp 的 512×512 像素坐标系 -->
+                                <Border Background="Transparent"
+                                        MouseDown="Border_MouseDown" MouseUp="CameraWindowButton_MouseUp" ToolTip="展台">
+                                    <Viewbox Width="20" Height="20">
+                                        <Canvas Width="512" Height="512">
+                                            <!-- 轮廓：拍摄头、悬臂立杆、底座 -->
+                                            <Path Stroke="{DynamicResource FloatBarForeground}" StrokeThickness="46"
+                                                  StrokeLineJoin="Round" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                  Data="M206,23 H282 A20,20 0 0 1 302,43 V120 A20,20 0 0 1 282,140 H206 A20,20 0 0 1 186,120 V43 A20,20 0 0 1 206,23 Z
+                                                        M186,140 H418.5 A23,23 0 0 1 441.5,163 V348
+                                                        M70,348 H441 V488 H70 Z" />
+                                            <!-- 三片扇叶 -->
+                                            <Rectangle Width="46" Height="92" Canvas.Left="209" Canvas.Top="210"
+                                                       Fill="{DynamicResource FloatBarForeground}" />
+                                            <Rectangle Width="46" Height="92" Canvas.Left="124" Canvas.Top="195"
+                                                       Fill="{DynamicResource FloatBarForeground}" RenderTransformOrigin="0.5,0.5">
+                                                <Rectangle.RenderTransform>
+                                                    <RotateTransform Angle="19.2" />
+                                                </Rectangle.RenderTransform>
+                                            </Rectangle>
+                                            <Rectangle Width="46" Height="92" Canvas.Left="294" Canvas.Top="194.5"
+                                                       Fill="{DynamicResource FloatBarForeground}" RenderTransformOrigin="0.5,0.5">
+                                                <Rectangle.RenderTransform>
+                                                    <RotateTransform Angle="-19.7" />
+                                                </Rectangle.RenderTransform>
+                                            </Rectangle>
+                                            <!-- 底座上的两颗指示灯 -->
+                                            <Ellipse Width="46" Height="46" Canvas.Left="255.5" Canvas.Top="397.5"
+                                                     Fill="{DynamicResource FloatBarForeground}" />
+                                            <Ellipse Width="46" Height="46" Canvas.Left="348.5" Canvas.Top="397.5"
+                                                     Fill="{DynamicResource FloatBarForeground}" />
+                                        </Canvas>
+                                    </Viewbox>
+                                </Border>
                             </Grid>
                             <Grid Margin="3,5,0,5">
                                 <Image MouseUp="ImageDrawShape_MouseUp" MouseDown="Border_MouseDown" Margin="-2.5" Source="{DynamicResource DrawShapeImageSource.DrawShapeIcon}" />
