@@ -102,6 +102,17 @@ namespace InkCanvasPlus
             timeMachine.OnUndoStateChanged += TimeMachine_OnUndoStateChanged;
             inkCanvas.Strokes.StrokesChanged += StrokesOnStrokesChanged;
 
+            InitBoardViewTransforms();
+
+            //黑板一藏起来（切到屏幕模式、进 PPT 放映……）就退出拖动状态并把整体位移归零，
+            //否则这个状态和位移会在别的模式下继续生效
+            GridBackgroundCover.IsVisibleChanged += (s, e) =>
+            {
+                if ((bool)e.NewValue) return;
+                SetBoardDragMode(false);
+                ResetBoardView();
+            };
+
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
             AutoUpdater.RunUpdateAsAdmin = false;

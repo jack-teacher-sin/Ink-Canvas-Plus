@@ -63,6 +63,9 @@ namespace InkCanvasPlus
             }
             else
             {
+                //拖动黑板也要吃掉单指手势，两个模式互斥
+                if (isBoardDragMode) SetBoardDragMode(false);
+
                 inkCanvas.StylusDown += MainWindow_StylusDown;
                 inkCanvas.StylusMove += MainWindow_StylusMove;
                 inkCanvas.StylusUp += MainWindow_StylusUp;
@@ -333,7 +336,8 @@ namespace InkCanvasPlus
             //手势完成后切回之前的状态
             if (dec.Count > 1)
             {
-                if (inkCanvas.EditingMode == InkCanvasEditingMode.None)
+                //拖动状态下停笔是常态，这里不能把画笔又恢复回来
+                if (inkCanvas.EditingMode == InkCanvasEditingMode.None && !IsBoardDragActive)
                 {
                     inkCanvas.EditingMode = lastInkCanvasEditingMode;
                 }
@@ -369,12 +373,27 @@ namespace InkCanvasPlus
             if (e.Manipulators.Count() == 0)
             {
                 if (forceEraser) return;
+                //拖动状态下手势结束本来就不该恢复画笔，保持停笔
+                if (IsBoardDragActive)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.None;
+                    return;
+                }
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
             }
         }
 
         private void Main_Grid_ManipulationDelta(object sender, ManipulationDeltaEventArgs e)
         {
+            //拖动状态：单指挪动整块黑板。两指及以上仍旧走下面的缩放/旋转手势
+            if (IsBoardDragActive && dec.Count < 2)
+            {
+                Vector boardDelta = e.DeltaManipulation.Translation;
+                TranslateBoardView(boardDelta.X, boardDelta.Y);
+                e.Handled = true;
+                return;
+            }
+
             if (isInMultiTouchMode || !Settings.Gesture.IsEnableTwoFingerGesture || _lockSmith) return;
             if (dec.Count >= 2 || isSingleFingerDragMode)
             {

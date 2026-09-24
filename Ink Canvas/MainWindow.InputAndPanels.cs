@@ -95,6 +95,15 @@ namespace InkCanvasPlus
         {
             var inkCanvas1 = sender as InkCanvas;
             if (inkCanvas1 == null) return;
+
+            //拖动状态下画笔/橡皮/选择都不生效（点一下左下角的箭头按钮才会回到书写状态）。
+            //老师要是去点了别的工具，这里把模式拉回来，免得一边挪黑板一边画线。
+            if (IsBoardDragActive && inkCanvas1.EditingMode != InkCanvasEditingMode.None)
+            {
+                inkCanvas1.EditingMode = InkCanvasEditingMode.None;
+                return;
+            }
+
             if (Settings.Canvas.IsShowCursor)
             {
                 if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink || drawingShapeMode != 0)

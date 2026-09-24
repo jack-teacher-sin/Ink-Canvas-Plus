@@ -477,6 +477,21 @@
                             <ui:SymbolIcon Name="SymbolIconMultiTouchMode" Symbol="People" Foreground="{DynamicResource FloatBarForeground}" />
                         </Viewbox>
                     </Border>
+                    <Border Name="BorderBoardDragMode" Width="36" Height="36" MouseUp="BorderBoardDragMode_MouseUp"
+                            CornerRadius="18" Background="{DynamicResource FloatBarBackground}"
+                            BorderThickness="1" BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                            ToolTip="点击进入拖动状态：单指或笔可以直接挪动整块黑板">
+                        <Viewbox Margin="8">
+                            <!-- 十字方向箭头：拖动状态。激活时底色与图标反色，一眼能看出状态 -->
+                            <Canvas Width="512" Height="512">
+                                <Path Name="PathBoardDragModeIcon" Stroke="{DynamicResource FloatBarForeground}" StrokeThickness="46"
+                                      StrokeLineJoin="Round" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                      Data="M256,72 V440 M72,256 H440
+                                            M188,140 L256,72 L324,140 M188,372 L256,440 L324,372
+                                            M140,188 L72,256 L140,324 M372,188 L440,256 L372,324" />
+                            </Canvas>
+                        </Viewbox>
+                    </Border>
                 </ui:SimpleStackPanel>
             </Viewbox>
             <ui:SimpleStackPanel Spacing="10" Orientation="Horizontal"

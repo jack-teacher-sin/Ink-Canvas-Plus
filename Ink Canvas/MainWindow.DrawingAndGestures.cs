@@ -526,6 +526,9 @@ namespace InkCanvasPlus
         {
             double borderLeft = (inkCanvas.GetSelectionBounds().Left + inkCanvas.GetSelectionBounds().Right - BorderStrokeSelectionControlWidth) / 2;
             double borderTop = inkCanvas.GetSelectionBounds().Bottom + 15;
+            //墨迹整体有位移时，选区工具条也得跟着偏（选区范围算的是 inkCanvas 坐标，这里用的是父容器坐标）
+            borderLeft += boardViewX;
+            borderTop += boardViewY;
             if (borderLeft < 0) borderLeft = 0;
             if (borderTop < 0) borderTop = 0;
             if (Width - borderLeft < BorderStrokeSelectionControlWidth || double.IsNaN(borderLeft)) borderLeft = Width - BorderStrokeSelectionControlWidth;
@@ -2050,6 +2053,12 @@ namespace InkCanvasPlus
                 e.Handled = true;
                 return;
             }
+            //拖动状态下笔和鼠标用来挪黑板，不再走画图形那条路
+            if (TryBeginBoardDrag(e))
+            {
+                e.Handled = true;
+                return;
+            }
             isMouseDown = true;
             if (NeedUpdateIniP())
             {
@@ -2059,6 +2068,12 @@ namespace InkCanvasPlus
 
         private void inkCanvas_MouseMove(object sender, MouseEventArgs e)
         {
+            if (isBoardDragging)
+            {
+                ContinueBoardDrag(e);
+                e.Handled = true;
+                return;
+            }
             if (GeometryToolsInkCanvasMouseMove(e))
             {
                 e.Handled = true;
@@ -2072,6 +2087,12 @@ namespace InkCanvasPlus
 
         private void inkCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (isBoardDragging)
+            {
+                EndBoardDrag();
+                e.Handled = true;
+                return;
+            }
             if (GeometryToolsInkCanvasMouseUp(e))
             {
                 e.Handled = true;
