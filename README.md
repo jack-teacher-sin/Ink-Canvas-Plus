@@ -4,11 +4,11 @@
 
 # Ink-Canvas-Plus
 
-[下载上游正式版](https://cloveryan.com/apps/Ink-Canvas-Plus/installer "从 cloveryan.com 下载")
+[下载本分支安装包](https://github.com/jack-teacher-sin/Ink-Canvas-Plus/releases "从 GitHub Releases 下载本分支版本") · [使用说明](Manual.md "查看完整使用说明") · [下载上游正式版](https://cloveryan.com/apps/Ink-Canvas-Plus/installer "从 cloveryan.com 下载")
 
 [![QQ 群 996760298](https://img.shields.io/badge/QQ%20群-996760298-blue)](http://qm.qq.com/cgi-bin/qm/qr?_wv=1027&k=KBN8I8M6E24RFoeFw7FNlXdGpOQybxTW&authKey=CNheMzaibvP5cGRwSGP9HTLiTQtpFfPwySrJ0%2BpoCYYF22JqhINFi3Mi8lNLuXCV&noverify=0&group_code=996760298) ![GitHub issues](https://img.shields.io/github/issues/clover-yan/Ink-Canvas-Plus?logo=github)
 
-Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和演示批注场景。支持笔触输入、几何作图、PowerPoint 批注、计时器、随机点名等功能。
+Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和演示批注场景。支持笔触输入、几何作图、PowerPoint 批注、展台抓拍批注、计时器、随机点名等功能。
 
 </div>
 
@@ -18,6 +18,8 @@ Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和�
 
 ### 本分支新增/修改功能
 
+- **展台抓拍批注**：新增独立展台窗口，支持切换设备与分辨率、抓拍、冻结画面、全屏、打开展台驱动属性页；抓拍画面直接贴到画布成为照片对象，可拖动、缩放、旋转、裁剪、删除。墨迹始终画在照片之上，可直接在实物画面上圈画讲解；抓拍不写入存档，退出即释放
+- **黑板拖动**：黑板模式左下角新增拖动状态开关，与书写状态互切。进入后单指或笔拖拽即可挪动整块黑板——板书、展台照片（连同手柄）、几何尺具挂在同一位移上整体走，相对位置不变；展台照片放大到超过屏幕时，可借此平移到任意区域查看
 - **几何工具**：黑板/白板模式新增直尺、三角尺、量角器，支持拖动、旋转、缩放，自动切换刻度颜色；直尺和三角尺支持贴边辅助画线；量角器支持点击刻度弧定点标记
 - **直线拟合优化**：采用总最小二乘法作为直线拟合算法，支持设置规范化阈值
 - **快捷键增强**：添加全局激活、清空笔迹快捷键及快捷键指南；支持矩形和圆形绘制快捷键
@@ -25,6 +27,7 @@ Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和�
   - 浮动工具栏改为左下悬浮球风格并默认折叠，支持自动折叠
   - 窗口标题实时反映当前画板状态
   - 新增 Plus 豆沙绿等主题选项
+  - 工具栏的尺规、展台图标由文字改为矢量绘制，缩放或换主题都不糊
 - **设置重构**：简化设置绑定逻辑，消除大量冗余 if/else
 - **代码质量改进**：修复异常日志空实现、资源泄漏、硬编码 UI 字符串判断等不合理代码
 
@@ -33,6 +36,8 @@ Ink Canvas Plus (IC+) 是一款 Windows 画板应用，适用于课堂教学和�
 ### 在 Windows 10 以下版本系统中，部分图标显示为 "□" 怎么办？
 
 [点击下载](https://aka.ms/SegoeFonts "SegoeFonts") SegoeFonts 文件，安装压缩包中 `SegMDL2.ttf` 字体后重启即可解决。
+
+工具栏图标和展台照片上的裁剪按钮用的都是 `Segoe MDL2 Assets` 字体，缺字体时它们会显示成方块，按上面的方法装上即可。
 
 ### 点击放映后一翻页就闪退
 
