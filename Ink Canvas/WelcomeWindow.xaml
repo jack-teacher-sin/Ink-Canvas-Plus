@@ -50,7 +50,8 @@
         </Grid>
         <DockPanel Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="4" LastChildFill="False">
             <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="10">
-                <ui:HyperlinkButton Name="HyperlinkButtonWebsite" Content="https://cloveryan.com/ic+" Click="HyperlinkButtonWebsite_Click" />
+                <!--按钮上显示的就是这串地址本身，改链接必须连 Content 一起改，否则按钮上仍写着上游域名-->
+                <ui:HyperlinkButton Name="HyperlinkButtonWebsite" Content="https://github.com/jack-teacher-sin/Ink-Canvas-Plus" Click="HyperlinkButtonWebsite_Click" />
             </StackPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Margin="10">
                 <Button Name="ButtonShowMore" Content="显示更多" Width="100" Height="30" Click="ButtonShowMore_Click" Margin="0 0 10 0"/>

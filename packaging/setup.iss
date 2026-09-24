@@ -4,7 +4,7 @@
 #define MyAppName "Ink Canvas Plus"
 ; #define MyAppVersion "4.0.0.4"
 #define MyAppPublisher "Clover Yan"
-#define MyAppURL "https://cloveryan.com/apps/Ink-Canvas-Plus"
+#define MyAppURL "https://github.com/jack-teacher-sin/Ink-Canvas-Plus"
 #define MyAppExeName "Ink Canvas.exe"
 #define MyAppAssocName MyAppName + " Strokes"
 #define MyAppAssocExt ".icstk"
@@ -107,7 +107,8 @@ Type: files; Name: "{userstartup}\InkCanvas.lnk"
 Filename: "{sys}\taskkill.exe"; Parameters: "/IM ""{#MyAppExeName}"" /F"; RunOnceId: "KillInkCanvasPlus"; Flags: runhidden
 
 [Messages]
-BeveledLabel=https://cloveryan.com/ic+ {#MyAppVersion}
+;这里不带 https:// —— 这个标签画在向导左下角，太长的串会被截断
+BeveledLabel=github.com/jack-teacher-sin/Ink-Canvas-Plus {#MyAppVersion}
 
 [Code]
 procedure InitializeWizard();

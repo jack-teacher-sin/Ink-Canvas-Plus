@@ -1,4 +1,3 @@
-using AutoUpdaterDotNET;
 using InkCanvasPlus.Helpers;
 using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Helpers;
@@ -1292,11 +1291,6 @@ namespace InkCanvasPlus
             SystemEvents_UserPreferenceChanged(null, null);
         }
 
-        private void CheckForUpdate()
-        {
-            AutoUpdater.Start($"https://dl.inkcanvasplus.khyan.top/autoupdate.xml?version={Application.ResourceAssembly.GetName().Version}");
-        }
-
         #endregion Definations and Loading
 
         #region Right Side Panel
@@ -1308,25 +1302,11 @@ namespace InkCanvasPlus
             new WelcomeWindow { Owner = this }.Show();
         }
 
+        //不再走 AutoUpdater 查上游的 feed —— 那个 feed 的下载地址指向上游安装包，
+        //点了会把用户换回上游版本。改成打开本仓库的 Releases 页面，由用户自己挑安装包。
         private void BtnCheckForUpdate_Click(object sender, RoutedEventArgs e)
         {
-            BtnCheckForUpdate.IsEnabled = false;
-            AutoUpdater.Mandatory = true;
-            AutoUpdater.ReportErrors = true;
-            CheckForUpdate();
-            CheckingUpdatesTip.Visibility = Visibility.Visible;
-            AssemblyVersionInfoPanel.Visibility = Visibility.Collapsed;
-            new Thread(new ThreadStart(() =>
-            {
-                Thread.Sleep(5000);
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    CheckingUpdatesTip.Visibility = Visibility.Collapsed;
-                    AssemblyVersionInfoPanel.Visibility = Visibility.Visible;
-                    BtnCheckForUpdate.IsEnabled = true;
-                });
-            })).Start();
-
+            Process.Start("https://github.com/jack-teacher-sin/Ink-Canvas-Plus/releases");
         }
         private void BtnExit_Click(object sender, RoutedEventArgs e)
         {

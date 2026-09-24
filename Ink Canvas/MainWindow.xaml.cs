@@ -1,4 +1,3 @@
-using AutoUpdaterDotNET;
 using InkCanvasPlus.Helpers;
 using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Helpers;
@@ -115,14 +114,9 @@ namespace InkCanvasPlus
 
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;
 
-            AutoUpdater.RunUpdateAsAdmin = false;
-            AutoUpdater.TopMost = true;
-            AutoUpdater.SetOwner(this);
-            AutoUpdater.ApplicationExitEvent += () =>
-            {
-                Environment.Exit(0);
-            };
-            CheckForUpdate();
+            //启动时不再检查更新。上游那个 feed（dl.inkcanvasplus.khyan.top）里的下载地址
+            //指向的是上游的安装包，只要上游版本号超过本分支，用户点一下「更新」就会被换回上游版。
+            //要查更新请点设置里的「检查更新」，它会打开本仓库的 Releases 页面。
 
             UpdateWindowTitle();
 

@@ -24,46 +24,31 @@ namespace InkCanvasPlus
         {
             InitializeComponent();
             TextBlockVersion.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
-            TextBlockUpdateContent.Inlines.Add(new Bold(new Run("Ink Canvas Plus 迎来 4.4 版本全新更新，祝您事事顺意！\n\n")));
+            TextBlockUpdateContent.Inlines.Add(new Bold(new Run("Ink Canvas Plus 4.4.1 更新，祝您事事顺意！\n\n")));
             TextBlockUpdateContent.Inlines.Add(new Bold(new Run("【新功能】")));
             TextBlockUpdateContent.Inlines.Add(@"
-本次更新增加了很多新设置项，点击工具栏中的「齿轮」按钮可以设置这些功能。
-
-· 新增「荧光笔」功能，使用工具栏中的荧光笔图标切换，快捷键 Alt+M
-· 工具栏图标支持缩放，默认大小为 80%，可按喜好调整显示大小
-  （外观→工具栏图标缩放）
-· 新增支持「垂直排布的 PPT 导航按钮」，适应不同的 PPT 课件
-  （外观→显示垂直 PPT 导航按钮）
-· 新增支持「自定义画笔颜色」，满足不同的批注需求
-  （画板→配置画笔颜色…）
-· 浮动工具栏可以「显示在屏幕右侧」并向左展开，适应不同的操作环境
-  （外观→浮动栏显示在右侧）
-· 浮动工具栏可以「记住上次显示的位置」，下次启动自动还原
-  （外观→记忆浮动栏位置）
-· 新增主题「太空蓝」「金秋黄」，Ink Canvas Plus 现在更色彩缤纷
-  （外观→颜色主题）
-· 橡皮擦增加「极小」「很小」两档尺寸，并优化了大小计算逻辑
-  （画板→橡皮大小）
-· 新增「套索选择」快捷键 Alt+Q，用键盘操作更顺手
-  提示：您可以在设置界面的底部查看完整的快捷键列表。
+· 展台抓拍批注：工具栏的展台图标会打开独立的展台窗口，抓拍画面直接贴到画板成为照片对象，
+  可拖动、缩放、旋转、删除；照片左侧的裁剪按钮可以裁掉多余部分，只留要讲的那一块。
+  墨迹始终画在照片之上，可以直接在实物画面上圈画讲解
+· 黑板拖动：黑板模式左下角的十字箭头图标，在「书写」和「拖动」之间切换。
+  进入拖动状态后，单指或笔在屏幕上拖动即可挪动整块黑板——板书墨迹、展台照片、
+  直尺三角尺量角器都挂在同一个位移上一起走，相对位置不会乱。
+  展台照片放大到超过屏幕时，可以这样把它平移到想看的区域
 
 ");
             TextBlockUpdateContent.Inlines.Add(new Bold(new Run("【改进】")));
             TextBlockUpdateContent.Inlines.Add(@"
-· 优化多实例处理，若 Ink Canvas Plus 已在运行但无响应，可以重新启动它
-· 手动检查更新时若没有检查到更新，现在会给出提示
-· 更新提示窗口不会再让主窗口卡死
-· 下载与联系方式等链接已迁移至新官网 cloveryan.com
+· 工具栏的「尺规」「展台」图标由文字改为矢量绘制，缩放或更换主题都清晰
+· 不再在启动时自动检查更新。以前查的是上游的更新源，它的下载地址指向上游安装包，
+  上游版本号一旦超过本分支，点「更新」就会被换回上游版本。
+  现在改为在设置里手动点「检查更新」，打开的是本仓库的下载页面
+· 应用内「关于」和本窗口里的链接全部指向本仓库
 
 ");
             TextBlockUpdateContent.Inlines.Add(new Bold(new Run("【问题修复】")));
             TextBlockUpdateContent.Inlines.Add(@"
-· 修复启动时浮动工具栏自动折叠不生效的问题
-· 修复使用鼠标和手写笔时无法拖拽或操作选区手柄的问题
-· 修复切换鼠标与画笔模式时偶尔界面闪动的问题
-· 修复切换回画笔模式后选定的颜色被重置的问题
-· 修复进入和退出黑板时画笔颜色初始化不一致的问题
-· 修复窗口可能被意外移动或改变大小的问题
+· 修复拖动黑板时，移动距离只有手指一半的问题
+· 修复展台照片裁剪后，再拖动缩放手柄时照片位置跳动的问题
 
 ");
         }
@@ -73,14 +58,15 @@ namespace InkCanvasPlus
             this.Close();
         }
 
+        //本分支的更新日志就是本仓库的 Releases 页面：每个版本的更新说明都写在那里
         private void ButtonShowMore_Click(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://cloveryan.com/apps/Ink-Canvas-Plus/changelog");
+            System.Diagnostics.Process.Start("https://github.com/jack-teacher-sin/Ink-Canvas-Plus/releases");
         }
 
         private void HyperlinkButtonWebsite_Click(object sender, RoutedEventArgs e)
         {
-            System.Diagnostics.Process.Start("https://cloveryan.com/ic+");
+            System.Diagnostics.Process.Start("https://github.com/jack-teacher-sin/Ink-Canvas-Plus");
         }
     }
 }

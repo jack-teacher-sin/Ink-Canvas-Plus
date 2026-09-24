@@ -1,4 +1,3 @@
-using AutoUpdaterDotNET;
 using InkCanvasPlus.Helpers;
 using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Helpers;
@@ -1847,9 +1846,11 @@ namespace InkCanvasPlus
             e.Handled = true;
         }
 
+        //「关于」里的链接一律指向本仓库。不要再把用户送去上游：上游版本不含本分支的功能，
+        //用户照着「关于」找过去，下到的是另一个程序。
         private void HyperlinkWebsite_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://cloveryan.com/apps/Ink-Canvas-Plus");
+            Process.Start("https://github.com/jack-teacher-sin/Ink-Canvas-Plus");
         }
 
         private void HyperlinkQQGroup_Click(object sender, RoutedEventArgs e)
@@ -1860,7 +1861,7 @@ namespace InkCanvasPlus
 
         private void HyperlinkSource_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://github.com/clover-yan/Ink-Canvas-Plus");
+            Process.Start("https://github.com/jack-teacher-sin/Ink-Canvas-Plus");
         }
 
         #endregion

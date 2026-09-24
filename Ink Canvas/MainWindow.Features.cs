@@ -1,4 +1,3 @@
-using AutoUpdaterDotNET;
 using InkCanvasPlus.Helpers;
 using iNKORE.UI.WPF.Modern;
 using iNKORE.UI.WPF.Modern.Helpers;
