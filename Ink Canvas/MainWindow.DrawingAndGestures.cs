@@ -525,9 +525,10 @@ namespace InkCanvasPlus
         {
             double borderLeft = (inkCanvas.GetSelectionBounds().Left + inkCanvas.GetSelectionBounds().Right - BorderStrokeSelectionControlWidth) / 2;
             double borderTop = inkCanvas.GetSelectionBounds().Bottom + 15;
-            //墨迹整体有位移时，选区工具条也得跟着偏（选区范围算的是 inkCanvas 坐标，这里用的是父容器坐标）
-            borderLeft += boardViewX;
-            borderTop += boardViewY;
+            //选区范围算的是 inkCanvas 坐标，这里用的是父容器坐标。黑板画布比窗口大、还要跟着位移走，
+            //所以要减掉可见区左上角（窗口坐标 = 黑板坐标 − 可见区左上角）
+            borderLeft -= BoardVisibleLeft;
+            borderTop -= BoardVisibleTop;
             if (borderLeft < 0) borderLeft = 0;
             if (borderTop < 0) borderTop = 0;
             if (Width - borderLeft < BorderStrokeSelectionControlWidth || double.IsNaN(borderLeft)) borderLeft = Width - BorderStrokeSelectionControlWidth;

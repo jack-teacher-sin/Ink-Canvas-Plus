@@ -1,27 +1,73 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
-using WpfCanvas = System.Windows.Controls.Canvas;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
+//XAML 里有个 Name="Canvas" 的元素，同名成员会把 Canvas 类型遮住，所以跟别的文件一样用别名
+using WpfCanvas = System.Windows.Controls.Canvas;
 
 namespace InkCanvasPlus
 {
+    /// <summary>
+    /// 几何尺具的共享部分：尺寸常量、主题刻度色、工具栏入口与事件路由、坐标与夹取的静态助手。
+    ///
+    /// 尺具本身是实例对象（一把尺具一份自己的视觉树和状态），见 MainWindow.GeometryToolInstances.cs。
+    /// 这里以前挂着“每样尺具只有一把”的单例：状态字段 + 按元素名写死的约 40 个处理器，
+    /// 现在处理器都搬到实例上去了，只剩这些谁都用得着的部分。
+    /// </summary>
     public partial class MainWindow
     {
+        // ---- 尺具的尺寸与手感。只有这一份定义，实例类从这里取 ----
+
+        //直尺：下限保留（太短了没法用），上限取消（老师要能一直拉长）
         private const double GeometryRulerMinWidth = 360;
-        private const double GeometryRulerMaxWidth = 1400;
+        private const double GeometryRulerDefaultWidth = 560;
+        private const double GeometryRulerHeight = 120;
+        //刻度画布的左/右边距，也就是原来 XAML 里 Grid 的第一、三列宽，合起来 74
+        private const double GeometryRulerTickLeftInset = 40;
+        private const double GeometryRulerTickRightInset = 34;
+        //尺身中段可以拖动、可以贴着边画线的范围（左右各让开一个把手）
+        private const double GeometryRulerDragLeftInset = 44;
+        private const double GeometryRulerDragRightInset = 36;
+
+        //三角尺：直角边同样只保留下限
         private const double GeometryTriangleMinLeg = 90;
-        private const double GeometryTriangleMaxLeg = 900;
+        private const double GeometryTriangleDefaultLegX = 250;
+        private const double GeometryTriangleDefaultLegY = 170;
         private const double GeometryTrianglePivotLocal = 20;
         private const double GeometryTriangleTickStartOffset = 25;
         private const double GeometryTriangleTickEndInset = 50;
+
+        //量角器：半径上下限都保留（老师只提了直尺和三角尺）
         private const double GeometryProtractorMinRadius = 110;
         private const double GeometryProtractorMaxRadius = 360;
+        private const double GeometryProtractorDefaultRadius = 160;
         private const double GeometryProtractorPadding = 22;
         private const double GeometryProtractorCloseButtonDrop = 44;
+
+        //刻度按可见区裁剪时两头各多留一点，免得边缘那几根因为取整被切掉
+        private const double GeometryTickCullMargin = 32;
+        //兜底：一次最多画这么多根刻度，防止裁剪万一算错时被一把超长尺子卡死界面。
+        //这个数必须比"最宽的窗口看得见的那一段有多少根"还大（10px 一根：8K 屏一屏也才 768 根）。
+        //小于可见刻度数时它是从区间开头截断的，砍掉的恰好是可见区靠右的那一段 ——
+        //表现就是"有一段刻度和数值都不显示，上下线和中线却还在"。取 2000（两万像素）留足余量
+        private const int GeometryTickMaxPerDraw = 2000;
+
+        //尺具之间的层级：从 21 起（覆盖层自己是 20），新开的、刚碰过的排在上面
+        private const int GeometryToolZIndexBase = 21;
+        //量角器的定点标记单独一层，压在尺具下面、墨迹上面（和以前每个点设 19 是一回事）
+        private const int GeometryProtractorMarkZIndex = 19;
+        //连点工具栏时同类实例错开落位的步长，绕满一圈回到原位
+        private const double GeometryToolCascadeStep = 28;
+        private const int GeometryToolCascadeWrap = 6;
+        //鼠标离尺边多近才算“要贴着边画线”
+        private const double GeometryAssistTolerance = 18;
+
+        //尺具/照片比可见区还大的时候（尺子能拉得比屏幕还长、照片能放得比屏幕还大），
+        //至少留这么宽的一段仍然搭在可见区里：任意一端都能被拖进屏幕、把柄够得着，
+        //又不会整块丢到屏幕外找不回来。见 ClampAxisKeepingVisible
+        private const double OversizedMinVisibleSpan = 140;
 
         private enum GeometryTriangleEdgeType { AB, AC, BC }
 
@@ -39,44 +85,12 @@ namespace InkCanvasPlus
             }
         }
 
-        private struct GeometryRulerLocal
-        {
-            public double LocalX;
-            public double LocalY;
-            public double RulerWidth;
-            public double HalfHeight;
-
-            public GeometryRulerLocal(double localX, double localY, double rulerWidth, double halfHeight)
-            {
-                LocalX = localX;
-                LocalY = localY;
-                RulerWidth = rulerWidth;
-                HalfHeight = halfHeight;
-            }
-        }
-
-        private bool _isRulerDragging, _isRulerDragPending, _isRulerRotating, _isRulerResizing;
-        private bool _isTriangleDragging, _isTriangleRotating, _isTriangleResizeB, _isTriangleResizeC;
-        private bool _isProtractorDragging, _isProtractorRotating, _isProtractorResizing;
-        private bool _isRulerAssistDrawing, _isTriangleAssistDrawing;
-        private Point _rulerDragOffset, _rulerLastMousePoint, _triangleDragOffset, _triangleLastMousePoint;
-        private Point _protractorDragOffset, _protractorLastMousePoint, _protractorPressPoint;
-        private DateTime _rulerDragPressUtc;
-        private double _rulerRotateOffsetDeg, _rulerAngleDeg, _rulerAssistStartT, _rulerAssistOffset;
-        private double _triangleRotateOffsetDeg, _triangleAngleDeg, _triangleLegX = 250, _triangleLegY = 170;
-        private GeometryTriangleEdgeType _triangleAssistEdge;
-        private double _triangleAssistStartParam, _protractorAngleDeg, _protractorRotateOffsetDeg, _protractorRadius = 160;
+        //助画时那条预览线（还没松手的那条）。全局只有一条，谁在助画谁负责收尾
         private StrokeCollection _geometryPreviewStrokes;
 
         private void InitializeGeometryTools()
         {
             Panel.SetZIndex(GeometryToolsOverlayCanvas, 20);
-            Panel.SetZIndex(RulerBorder, 21);
-            Panel.SetZIndex(TriangleBorder, 21);
-            Panel.SetZIndex(ProtractorBorder, 21);
-            UpdateRulerTicks();
-            UpdateTriangleGeometry();
-            UpdateProtractorGeometry();
         }
 
         private Brush GeometryToolTickBrush
@@ -99,19 +113,10 @@ namespace InkCanvasPlus
             }
         }
 
+        /// <summary>黑板/白板切换、主题切换后，所有开着的尺具都重画一遍刻度。</summary>
         private void RefreshGeometryToolTheme()
         {
-            UpdateRulerTicks();
-            UpdateTriangleGeometry();
-            UpdateProtractorGeometry();
-        }
-
-        private void GeometryToolButton_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isRulerDragging = false;
-            _isRulerDragPending = false;
-            _isTriangleDragging = false;
-            _isProtractorDragging = false;
+            foreach (var instance in _geometryToolInstances) instance.RebuildTicks();
         }
 
         private void GeometryToolsButton_MouseUp(object sender, MouseButtonEventArgs e)
@@ -123,65 +128,56 @@ namespace InkCanvasPlus
             e.Handled = true;
         }
 
+        //点一次就新建一把，不再“有就显示、再点就收起”：画平行线这类场景需要同时摆好几把
         private void RulerToolItem_MouseUp(object sender, MouseButtonEventArgs e)
         {
             BorderGeometryTools.Visibility = Visibility.Collapsed;
-            RulerBorder.Visibility = RulerBorder.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            if (RulerBorder.Visibility == Visibility.Visible) PlaceRulerAtCenter();
+            CreateGeometryTool(GeometryToolKind.Ruler);
             e.Handled = true;
         }
 
         private void TriangleToolItem_MouseUp(object sender, MouseButtonEventArgs e)
         {
             BorderGeometryTools.Visibility = Visibility.Collapsed;
-            TriangleBorder.Visibility = TriangleBorder.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            if (TriangleBorder.Visibility == Visibility.Visible) PlaceTriangleAtCenter();
+            CreateGeometryTool(GeometryToolKind.Triangle);
             e.Handled = true;
         }
 
         private void ProtractorToolItem_MouseUp(object sender, MouseButtonEventArgs e)
         {
             BorderGeometryTools.Visibility = Visibility.Collapsed;
-            ProtractorBorder.Visibility = ProtractorBorder.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-            if (ProtractorBorder.Visibility == Visibility.Visible) PlaceProtractorAtCenter();
+            CreateGeometryTool(GeometryToolKind.Protractor);
             e.Handled = true;
         }
 
+        //尺具的助画走的是墨迹画布上的鼠标事件（按下时把捕获交给 inkCanvas），
+        //这三个是它在墨迹画布那条链上的入口
         private bool GeometryToolsInkCanvasMouseDown(MouseButtonEventArgs e)
         {
-            var point = e.GetPosition(inkCanvas);
-            return TryBeginTriangleAssist(point) || TryBeginRulerAssist(point);
+            return TryBeginGeometryAssist(e.GetPosition(inkCanvas), null);
         }
 
         private bool GeometryToolsInkCanvasMouseMove(MouseEventArgs e)
         {
-            if (_isTriangleAssistDrawing)
+            if (_assistInstance == null) return false;
+
+            //松手事件丢在窗口外时就走不到 MouseUp，这里顺手收个尾：
+            //不然后面每次移动都会被当成“还在助画”吃掉，等于写不上字了
+            if (e.LeftButton != MouseButtonState.Pressed)
             {
-                if (e.LeftButton == MouseButtonState.Pressed) UpdateTriangleAssistPreview(e.GetPosition(inkCanvas));
+                EndGeometryAssist(_assistInstance, true);
                 return true;
             }
 
-            if (_isRulerAssistDrawing)
-            {
-                if (e.LeftButton == MouseButtonState.Pressed) UpdateRulerAssistPreview(e.GetPosition(inkCanvas));
-                return true;
-            }
-
-            return false;
+            _assistInstance.UpdateAssistPreview(e.GetPosition(inkCanvas));
+            return true;
         }
 
         private bool GeometryToolsInkCanvasMouseUp(MouseButtonEventArgs e)
         {
-            if (_isTriangleAssistDrawing || _isRulerAssistDrawing)
-            {
-                _isTriangleAssistDrawing = false;
-                _isRulerAssistDrawing = false;
-                CommitGeometryPreview();
-                inkCanvas.ReleaseMouseCapture();
-                return true;
-            }
-
-            return false;
+            if (_assistInstance == null) return false;
+            EndGeometryAssist(_assistInstance, true);
+            return true;
         }
 
         private bool IsGeometryDrawingAvailable()
@@ -189,710 +185,16 @@ namespace InkCanvasPlus
             return inkCanvas.Visibility == Visibility.Visible && inkCanvas.EditingMode == InkCanvasEditingMode.Ink && drawingShapeMode == 0;
         }
 
-        private void CloseRulerButton_Click(object sender, RoutedEventArgs e)
+        //尺具挂在覆盖层上，墨迹挂在 inkCanvas 上，两层在黑板里是同一套坐标（同原点、同位移），
+        //所以这两个换算只是写法上分清楚“这个点该按谁的坐标系算”，数值是一样的
+        private Point OverlayPointFrom(MouseEventArgs e)
         {
-            RulerBorder.Visibility = Visibility.Collapsed;
-            _isRulerAssistDrawing = false;
-            ClearGeometryPreview();
+            return e.GetPosition(GeometryToolsOverlayCanvas);
         }
 
-        private void CloseTriangleButton_Click(object sender, RoutedEventArgs e)
+        private Point InkPointFrom(MouseEventArgs e)
         {
-            TriangleBorder.Visibility = Visibility.Collapsed;
-            _isTriangleAssistDrawing = false;
-            ClearGeometryPreview();
-        }
-
-        private void CloseProtractorButton_Click(object sender, RoutedEventArgs e)
-        {
-            ProtractorBorder.Visibility = Visibility.Collapsed;
-        }
-
-        private void RulerBorder_SizeChanged(object sender, SizeChangedEventArgs e) { UpdateRulerTicks(); }
-
-        private void RulerBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (IsOriginalSourceInside(e.OriginalSource, CloseRulerButton) ||
-                IsOriginalSourceInside(e.OriginalSource, RulerRotateHandle) ||
-                IsOriginalSourceInside(e.OriginalSource, RulerResizeHandle))
-            {
-                return;
-            }
-            if (_isRulerRotating || _isRulerResizing) return;
-            var overlayPoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            if (IsNearRulerDrawingEdge(overlayPoint) && TryBeginRulerAssist(e.GetPosition(inkCanvas)))
-            {
-                e.Handled = true;
-                return;
-            }
-
-            var p = overlayPoint;
-            if (!IsInRulerDragBand(p)) return;
-            _isRulerDragPending = true;
-            _rulerDragPressUtc = DateTime.UtcNow;
-            _isRulerDragging = false;
-            _rulerDragOffset = new Point(p.X - WpfCanvas.GetLeft(RulerBorder), p.Y - WpfCanvas.GetTop(RulerBorder));
-            RulerBorder.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void RulerBorder_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_isRulerAssistDrawing)
-            {
-                if (e.LeftButton == MouseButtonState.Pressed)
-                {
-                    UpdateRulerAssistPreview(e.GetPosition(inkCanvas));
-                    e.Handled = true;
-                }
-                return;
-            }
-
-            if (_isRulerRotating || _isRulerResizing) return;
-            if (e.LeftButton != MouseButtonState.Pressed)
-            {
-                _isRulerDragPending = false;
-                return;
-            }
-
-            if (_isRulerDragPending && !_isRulerDragging)
-            {
-                if ((DateTime.UtcNow - _rulerDragPressUtc).TotalMilliseconds < 220) return;
-                _isRulerDragging = true;
-                _isRulerDragPending = false;
-            }
-            if (!_isRulerDragging) return;
-
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            var origin = ClampToolOrigin(new Point(p.X - _rulerDragOffset.X, p.Y - _rulerDragOffset.Y),
-                RulerBorder.Width, RulerBorder.Height, 0, RulerBorder.Height / 2.0, _rulerAngleDeg);
-            WpfCanvas.SetLeft(RulerBorder, origin.X);
-            WpfCanvas.SetTop(RulerBorder, origin.Y);
-            e.Handled = true;
-        }
-
-        private void RulerBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (_isRulerAssistDrawing)
-            {
-                _isRulerAssistDrawing = false;
-                CommitGeometryPreview();
-                inkCanvas.ReleaseMouseCapture();
-                e.Handled = true;
-                return;
-            }
-
-            _isRulerDragPending = false;
-            _isRulerDragging = false;
-            RulerBorder.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void RulerRotateHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isRulerRotating = true;
-            _rulerLastMousePoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            _rulerRotateOffsetDeg = GetPointerAngle(_rulerLastMousePoint) - _rulerAngleDeg;
-            RulerRotateHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void RulerRotateHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isRulerRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
-            _rulerAngleDeg = GetPointerAngle(pointer) - _rulerRotateOffsetDeg;
-            ApplyRulerTransform();
-            KeepToolInsideCanvas(RulerBorder, RulerBorder.Width, RulerBorder.Height, 0, RulerBorder.Height / 2.0, _rulerAngleDeg);
-            _rulerRotateOffsetDeg = GetPointerAngle(pointer) - _rulerAngleDeg;
-            e.Handled = true;
-        }
-
-        private void RulerRotateHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isRulerRotating = false;
-            RulerRotateHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void RulerResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isRulerResizing = true;
-            _rulerLastMousePoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            RulerResizeHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void RulerResizeHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isRulerResizing || e.LeftButton != MouseButtonState.Pressed) return;
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            var delta = p - _rulerLastMousePoint;
-            _rulerLastMousePoint = p;
-            var axis = GetRulerAxis();
-            var along = (delta.X * axis.X) + (delta.Y * axis.Y);
-            if (Math.Abs(along) < 0.1) return;
-            RulerBorder.Width = Clamp(RulerBorder.Width + along, GeometryRulerMinWidth, GeometryRulerMaxWidth);
-            UpdateRulerTicks();
-            ApplyRulerTransform();
-            e.Handled = true;
-        }
-
-        private void RulerResizeHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isRulerResizing = false;
-            RulerResizeHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void TriangleBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (IsOriginalSourceInside(e.OriginalSource, CloseTriangleButton) ||
-                IsOriginalSourceInside(e.OriginalSource, TriangleRotateHandle) ||
-                IsOriginalSourceInside(e.OriginalSource, TriangleVertexBHandle) ||
-                IsOriginalSourceInside(e.OriginalSource, TriangleVertexCHandle))
-            {
-                return;
-            }
-            if (_isTriangleRotating || _isTriangleResizeB || _isTriangleResizeC) return;
-            if (TryBeginTriangleAssist(e.GetPosition(inkCanvas)))
-            {
-                e.Handled = true;
-                return;
-            }
-
-            _isTriangleDragging = true;
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            _triangleDragOffset = new Point(p.X - WpfCanvas.GetLeft(TriangleBorder), p.Y - WpfCanvas.GetTop(TriangleBorder));
-            TriangleBorder.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void TriangleBorder_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (_isTriangleAssistDrawing)
-            {
-                if (e.LeftButton == MouseButtonState.Pressed)
-                {
-                    UpdateTriangleAssistPreview(e.GetPosition(inkCanvas));
-                    e.Handled = true;
-                }
-                return;
-            }
-
-            if (!_isTriangleDragging || e.LeftButton != MouseButtonState.Pressed) return;
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            var origin = ClampToolOrigin(new Point(p.X - _triangleDragOffset.X, p.Y - _triangleDragOffset.Y),
-                TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
-            WpfCanvas.SetLeft(TriangleBorder, origin.X);
-            WpfCanvas.SetTop(TriangleBorder, origin.Y);
-            e.Handled = true;
-        }
-
-        private void TriangleBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            if (_isTriangleAssistDrawing)
-            {
-                _isTriangleAssistDrawing = false;
-                CommitGeometryPreview();
-                inkCanvas.ReleaseMouseCapture();
-                e.Handled = true;
-                return;
-            }
-
-            _isTriangleDragging = false;
-            TriangleBorder.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void TriangleRotateHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleRotating = true;
-            _triangleLastMousePoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            _triangleRotateOffsetDeg = GetPointerAngleAround(GetTrianglePivotWorld(), _triangleLastMousePoint) - _triangleAngleDeg;
-            TriangleRotateHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void TriangleRotateHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isTriangleRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
-            _triangleAngleDeg = GetPointerAngleAround(GetTrianglePivotWorld(), pointer) - _triangleRotateOffsetDeg;
-            ApplyTriangleTransform();
-            KeepToolInsideCanvas(TriangleBorder, TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
-            _triangleRotateOffsetDeg = GetPointerAngleAround(GetTrianglePivotWorld(), pointer) - _triangleAngleDeg;
-            e.Handled = true;
-        }
-
-        private void TriangleRotateHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleRotating = false;
-            TriangleRotateHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexBHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleResizeB = true;
-            TriangleVertexBHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexBHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isTriangleResizeB || e.LeftButton != MouseButtonState.Pressed) return;
-            _triangleLegX = Clamp(GetTriangleLocalFromWorld(e.GetPosition(GeometryToolsOverlayCanvas)).X, GeometryTriangleMinLeg, GeometryTriangleMaxLeg);
-            UpdateTriangleGeometry();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexBHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleResizeB = false;
-            TriangleVertexBHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexCHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleResizeC = true;
-            TriangleVertexCHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexCHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isTriangleResizeC || e.LeftButton != MouseButtonState.Pressed) return;
-            _triangleLegY = Clamp(GetTriangleLocalFromWorld(e.GetPosition(GeometryToolsOverlayCanvas)).Y, GeometryTriangleMinLeg, GeometryTriangleMaxLeg);
-            UpdateTriangleGeometry();
-            e.Handled = true;
-        }
-
-        private void TriangleVertexCHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isTriangleResizeC = false;
-            TriangleVertexCHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void ProtractorBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (IsOriginalSourceInside(e.OriginalSource, CloseProtractorButton) ||
-                IsOriginalSourceInside(e.OriginalSource, ProtractorRotateHandle) ||
-                IsOriginalSourceInside(e.OriginalSource, ProtractorResizeHandle))
-            {
-                return;
-            }
-            if (_isProtractorRotating || _isProtractorResizing) return;
-
-            var local = GetProtractorLocalFromWorld(e.GetPosition(GeometryToolsOverlayCanvas));
-            if (TryPlaceProtractorMark(local))
-            {
-                e.Handled = true;
-                return;
-            }
-
-            _isProtractorDragging = true;
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            _protractorPressPoint = p;
-            _protractorDragOffset = new Point(p.X - WpfCanvas.GetLeft(ProtractorBorder), p.Y - WpfCanvas.GetTop(ProtractorBorder));
-            ProtractorBorder.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void ProtractorBorder_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isProtractorDragging || e.LeftButton != MouseButtonState.Pressed) return;
-            var p = e.GetPosition(GeometryToolsOverlayCanvas);
-            if (Math.Abs(p.X - _protractorPressPoint.X) < SystemParameters.MinimumHorizontalDragDistance &&
-                Math.Abs(p.Y - _protractorPressPoint.Y) < SystemParameters.MinimumVerticalDragDistance) return;
-            var pivotLocal = GetProtractorPivotLocal();
-            var origin = ClampToolOrigin(new Point(p.X - _protractorDragOffset.X, p.Y - _protractorDragOffset.Y),
-                ProtractorBorder.Width, ProtractorBorder.Height, pivotLocal.X, pivotLocal.Y, _protractorAngleDeg);
-            WpfCanvas.SetLeft(ProtractorBorder, origin.X);
-            WpfCanvas.SetTop(ProtractorBorder, origin.Y);
-            e.Handled = true;
-        }
-
-        private void ProtractorBorder_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isProtractorDragging = false;
-            ProtractorBorder.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void ProtractorRotateHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isProtractorRotating = true;
-            _protractorLastMousePoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            _protractorRotateOffsetDeg = GetPointerAngleAround(GetProtractorPivotWorld(), _protractorLastMousePoint) - _protractorAngleDeg;
-            ProtractorRotateHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void ProtractorRotateHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isProtractorRotating || e.LeftButton != MouseButtonState.Pressed) return;
-            var pointer = e.GetPosition(GeometryToolsOverlayCanvas);
-            _protractorAngleDeg = NormalizeAngle(GetPointerAngleAround(GetProtractorPivotWorld(), pointer) - _protractorRotateOffsetDeg);
-            ApplyProtractorTransform();
-            KeepProtractorInsideCanvas();
-            _protractorRotateOffsetDeg = GetPointerAngleAround(GetProtractorPivotWorld(), pointer) - _protractorAngleDeg;
-            e.Handled = true;
-        }
-
-        private void ProtractorRotateHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isProtractorRotating = false;
-            ProtractorRotateHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void ProtractorResizeHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            _isProtractorResizing = true;
-            _protractorLastMousePoint = e.GetPosition(GeometryToolsOverlayCanvas);
-            ProtractorResizeHandle.CaptureMouse();
-            e.Handled = true;
-        }
-
-        private void ProtractorResizeHandle_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (!_isProtractorResizing || e.LeftButton != MouseButtonState.Pressed) return;
-            var pivot = GetProtractorPivotWorld();
-            var local = GetProtractorLocalFromWorld(e.GetPosition(GeometryToolsOverlayCanvas));
-            _protractorRadius = Clamp(Math.Sqrt(local.X * local.X + local.Y * local.Y), GeometryProtractorMinRadius, GeometryProtractorMaxRadius);
-            UpdateProtractorGeometry();
-            MoveProtractorPivotTo(pivot);
-            e.Handled = true;
-        }
-
-        private void ProtractorResizeHandle_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-        {
-            _isProtractorResizing = false;
-            ProtractorResizeHandle.ReleaseMouseCapture();
-            e.Handled = true;
-        }
-
-        private void ProtractorBorder_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            if (ProtractorBorder.Visibility != Visibility.Visible) return;
-            var step = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift ? 1.0 : 0.1;
-            _protractorAngleDeg = NormalizeAngle(_protractorAngleDeg + (e.Delta > 0 ? step : -step));
-            ApplyProtractorTransform();
-            KeepProtractorInsideCanvas();
-            e.Handled = true;
-        }
-
-        private void PlaceRulerAtCenter()
-        {
-            WpfCanvas.SetLeft(RulerBorder, Math.Max(0, (GeometryToolsOverlayCanvas.ActualWidth - RulerBorder.Width) / 2.0));
-            WpfCanvas.SetTop(RulerBorder, Math.Max(0, (GeometryToolsOverlayCanvas.ActualHeight - RulerBorder.Height) / 2.0));
-            _rulerAngleDeg = 0;
-            ApplyRulerTransform();
-        }
-
-        private void UpdateRulerTicks()
-        {
-            if (RulerTickCanvas == null) return;
-            RulerTickCanvas.Children.Clear();
-            var width = Math.Max(80.0, RulerBorder.Width - 74);
-            var height = Math.Max(40.0, RulerBorder.Height - 16);
-            RulerTickCanvas.Width = width;
-            RulerTickCanvas.Height = height;
-            var brush = GeometryToolTickBrush;
-            var centerY = height / 2.0;
-            RulerTickCanvas.Children.Add(new Line { X1 = 0, Y1 = 2, X2 = width, Y2 = 2, Stroke = brush, StrokeThickness = 1 });
-            RulerTickCanvas.Children.Add(new Line { X1 = 0, Y1 = height - 2, X2 = width, Y2 = height - 2, Stroke = brush, StrokeThickness = 1 });
-            RulerTickCanvas.Children.Add(new Line
-            {
-                X1 = 0,
-                Y1 = centerY,
-                X2 = width,
-                Y2 = centerY,
-                Stroke = brush,
-                StrokeThickness = 1.6,
-                StrokeDashArray = new DoubleCollection { 8, 4 },
-                Opacity = 0.9
-            });
-            for (var x = 0.0; x <= width; x += 10.0)
-            {
-                var index = (int)Math.Round(x / 10.0);
-                var major = index % 5 == 0;
-                var mid = !major && index % 2 == 0;
-                var len = major ? 24 : (mid ? 17 : 11);
-                RulerTickCanvas.Children.Add(new Line { X1 = x, Y1 = 2, X2 = x, Y2 = 2 + len, Stroke = brush, StrokeThickness = major ? 1.2 : 1 });
-                RulerTickCanvas.Children.Add(new Line { X1 = x, Y1 = height - 2, X2 = x, Y2 = height - 2 - len, Stroke = brush, StrokeThickness = major ? 1.2 : 1 });
-                if (!major) continue;
-                var label = new TextBlock { Text = (index / 5).ToString(), FontSize = 11, Foreground = brush };
-                WpfCanvas.SetLeft(label, x + 3);
-                WpfCanvas.SetTop(label, centerY - 8);
-                RulerTickCanvas.Children.Add(label);
-            }
-        }
-
-        private void ApplyRulerTransform()
-        {
-            RulerBorder.RenderTransform = new RotateTransform(_rulerAngleDeg);
-        }
-
-        private void PlaceTriangleAtCenter()
-        {
-            MoveTrianglePivotTo(new Point(GeometryToolsOverlayCanvas.ActualWidth * 0.55, GeometryToolsOverlayCanvas.ActualHeight * 0.45));
-            _triangleAngleDeg = 0;
-            ApplyTriangleTransform();
-        }
-
-        private void UpdateTriangleGeometry()
-        {
-            if (TriangleCanvas == null) return;
-            var a = new Point(GeometryTrianglePivotLocal, GeometryTrianglePivotLocal);
-            var b = new Point(GeometryTrianglePivotLocal + _triangleLegX, GeometryTrianglePivotLocal);
-            var c = new Point(GeometryTrianglePivotLocal, GeometryTrianglePivotLocal + _triangleLegY);
-            TriangleBorder.Width = _triangleLegX + GeometryTrianglePivotLocal + 36;
-            TriangleBorder.Height = _triangleLegY + GeometryTrianglePivotLocal + 36;
-            TriangleCanvas.Width = TriangleBorder.Width;
-            TriangleCanvas.Height = TriangleBorder.Height;
-            TrianglePolygon.Points = new PointCollection { a, b, c };
-            WpfCanvas.SetLeft(CloseTriangleButton, a.X + Math.Max(18, _triangleLegX * 0.22));
-            WpfCanvas.SetTop(CloseTriangleButton, a.Y + Math.Max(12, _triangleLegY * 0.18));
-            UpdateTriangleTicks(a);
-            WpfCanvas.SetLeft(TriangleVertexBHandle, b.X - TriangleVertexBHandle.Width * 0.75);
-            WpfCanvas.SetTop(TriangleVertexBHandle, b.Y - TriangleVertexBHandle.Height * 0.5);
-            WpfCanvas.SetLeft(TriangleVertexCHandle, c.X - TriangleVertexCHandle.Width * 0.5);
-            WpfCanvas.SetTop(TriangleVertexCHandle, c.Y - TriangleVertexCHandle.Height * 0.75);
-            WpfCanvas.SetLeft(TriangleRotateHandle, GeometryTrianglePivotLocal + _triangleLegX * 0.58 - TriangleRotateHandle.Width / 2.0);
-            WpfCanvas.SetTop(TriangleRotateHandle, GeometryTrianglePivotLocal + _triangleLegY * 0.58 - TriangleRotateHandle.Height / 2.0);
-            ApplyTriangleTransform();
-        }
-
-        private void UpdateTriangleTicks(Point a)
-        {
-            TriangleTickCanvas.Children.Clear();
-            TriangleTickCanvas.Width = TriangleCanvas.Width;
-            TriangleTickCanvas.Height = TriangleCanvas.Height;
-            var brush = GeometryToolSubtleTickBrush;
-            DrawTriangleLegTicks(true, a, brush);
-            DrawTriangleLegTicks(false, a, brush);
-        }
-
-        private void DrawTriangleLegTicks(bool horizontal, Point a, Brush brush)
-        {
-            var legLength = horizontal ? _triangleLegX : _triangleLegY;
-            var firstTick = GeometryTriangleTickStartOffset;
-            var lastTick = Math.Max(firstTick, legLength - GeometryTriangleTickEndInset);
-            for (var pos = firstTick; pos <= lastTick; pos += 10.0)
-            {
-                var index = (int)Math.Round((pos - firstTick) / 10.0);
-                var major = index % 5 == 0;
-                var mid = !major && index % 2 == 0;
-                var len = major ? 18 : (mid ? 13 : 8);
-                if (horizontal)
-                {
-                    var x = a.X + pos;
-                    TriangleTickCanvas.Children.Add(new Line { X1 = x, Y1 = a.Y, X2 = x, Y2 = a.Y + len, Stroke = brush, StrokeThickness = 1 });
-                    if (major)
-                    {
-                        var label = new TextBlock { Text = (index / 5).ToString(), FontSize = 11, Foreground = brush };
-                        WpfCanvas.SetLeft(label, x - 4);
-                        WpfCanvas.SetTop(label, a.Y + len + 1);
-                        TriangleTickCanvas.Children.Add(label);
-                    }
-                }
-                else
-                {
-                    var y = a.Y + pos;
-                    TriangleTickCanvas.Children.Add(new Line { X1 = a.X, Y1 = y, X2 = a.X + len, Y2 = y, Stroke = brush, StrokeThickness = 1 });
-                    if (major)
-                    {
-                        var label = new TextBlock { Text = (index / 5).ToString(), FontSize = 11, Foreground = brush };
-                        WpfCanvas.SetLeft(label, a.X + len + 2);
-                        WpfCanvas.SetTop(label, y - 7);
-                        TriangleTickCanvas.Children.Add(label);
-                    }
-                }
-            }
-        }
-
-        private void ApplyTriangleTransform()
-        {
-            TriangleBorder.RenderTransform = new RotateTransform(_triangleAngleDeg, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal);
-        }
-
-        private void MoveTrianglePivotTo(Point pivot)
-        {
-            var origin = ClampToolOrigin(new Point(pivot.X - GeometryTrianglePivotLocal, pivot.Y - GeometryTrianglePivotLocal),
-                TriangleBorder.Width, TriangleBorder.Height, GeometryTrianglePivotLocal, GeometryTrianglePivotLocal, _triangleAngleDeg);
-            WpfCanvas.SetLeft(TriangleBorder, origin.X);
-            WpfCanvas.SetTop(TriangleBorder, origin.Y);
-        }
-
-        private void UpdateProtractorGeometry()
-        {
-            if (ProtractorCanvas == null) return;
-            _protractorRadius = Clamp(_protractorRadius, GeometryProtractorMinRadius, GeometryProtractorMaxRadius);
-            var width = _protractorRadius * 2 + GeometryProtractorPadding * 2;
-            var height = _protractorRadius + GeometryProtractorPadding + 56;
-            var center = new Point(GeometryProtractorPadding + _protractorRadius, GeometryProtractorPadding + _protractorRadius);
-            ProtractorBorder.Width = width;
-            ProtractorBorder.Height = height;
-            ProtractorCanvas.Width = width;
-            ProtractorCanvas.Height = height;
-            ProtractorTickCanvas.Width = width;
-            ProtractorTickCanvas.Height = height;
-
-            var start = new Point(center.X - _protractorRadius, center.Y);
-            var end = new Point(center.X + _protractorRadius, center.Y);
-            var figure = new PathFigure { StartPoint = start, IsClosed = true, IsFilled = true };
-            figure.Segments.Add(new ArcSegment { Point = end, Size = new Size(_protractorRadius, _protractorRadius), SweepDirection = SweepDirection.Clockwise, IsLargeArc = false });
-            figure.Segments.Add(new LineSegment(start, true));
-            ProtractorFillPath.Data = new PathGeometry(new[] { figure });
-
-            WpfCanvas.SetLeft(ProtractorPivotDot, center.X - ProtractorPivotDot.Width / 2.0);
-            WpfCanvas.SetTop(ProtractorPivotDot, center.Y - ProtractorPivotDot.Height / 2.0);
-            WpfCanvas.SetLeft(CloseProtractorButton, center.X - CloseProtractorButton.Width / 2.0);
-            WpfCanvas.SetTop(CloseProtractorButton, Math.Max(4, center.Y - _protractorRadius + GeometryProtractorCloseButtonDrop));
-            WpfCanvas.SetLeft(ProtractorRotateHandle, center.X - ProtractorRotateHandle.Width / 2.0);
-            WpfCanvas.SetTop(ProtractorRotateHandle, center.Y + 14);
-            WpfCanvas.SetLeft(ProtractorResizeHandle, center.X + _protractorRadius - ProtractorResizeHandle.Width / 2.0);
-            WpfCanvas.SetTop(ProtractorResizeHandle, center.Y - ProtractorResizeHandle.Height / 2.0);
-            UpdateProtractorTicks(center, _protractorRadius);
-            ApplyProtractorTransform();
-        }
-
-        private void UpdateProtractorTicks(Point center, double radius)
-        {
-            ProtractorTickCanvas.Children.Clear();
-            var tickBrush = GeometryToolSubtleTickBrush;
-            var textBrush = GeometryToolTickBrush;
-            ProtractorTickCanvas.Children.Add(new Line { X1 = center.X - radius, Y1 = center.Y, X2 = center.X + radius, Y2 = center.Y, Stroke = tickBrush, StrokeThickness = 2 });
-            for (var deg = 0; deg <= 180; deg++)
-            {
-                var radians = Math.PI - deg * Math.PI / 180.0;
-                var major = deg % 10 == 0;
-                var mid = !major && deg % 5 == 0;
-                var len = major ? 16 : (mid ? 11 : 6);
-                var outer = new Point(center.X + Math.Cos(radians) * radius, center.Y - Math.Sin(radians) * radius);
-                var inner = new Point(center.X + Math.Cos(radians) * (radius - len), center.Y - Math.Sin(radians) * (radius - len));
-                ProtractorTickCanvas.Children.Add(new Line { X1 = outer.X, Y1 = outer.Y, X2 = inner.X, Y2 = inner.Y, Stroke = tickBrush, StrokeThickness = major ? 1.4 : (mid ? 1.1 : 0.9) });
-                if (!major) continue;
-                AddProtractorLabel(center, radius - 28, radians, deg.ToString(), deg == 0 || deg == 90 || deg == 180 ? 12 : 10, textBrush, FontWeights.SemiBold);
-                AddProtractorLabel(center, radius - 48, radians, (180 - deg).ToString(), 9, textBrush, FontWeights.Normal);
-            }
-        }
-
-        private void AddProtractorLabel(Point center, double labelRadius, double radians, string text, double fontSize, Brush foreground, FontWeight weight)
-        {
-            var labelPos = new Point(center.X + Math.Cos(radians) * labelRadius, center.Y - Math.Sin(radians) * labelRadius);
-            var label = new TextBlock { Text = text, FontSize = fontSize, FontWeight = weight, Foreground = foreground };
-            label.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            WpfCanvas.SetLeft(label, labelPos.X - label.DesiredSize.Width / 2.0);
-            WpfCanvas.SetTop(label, labelPos.Y - label.DesiredSize.Height / 2.0);
-            ProtractorTickCanvas.Children.Add(label);
-        }
-
-        private bool TryPlaceProtractorMark(Point local)
-        {
-            var radius = _protractorRadius;
-            var distance = Math.Sqrt(local.X * local.X + local.Y * local.Y);
-            if (local.Y > 10 || distance < radius - 26 || distance > radius + 10)
-            {
-                return false;
-            }
-
-            var rawDegree = Math.Atan2(-local.Y, local.X) * 180.0 / Math.PI;
-            var degree = Clamp(Math.Round(180.0 - rawDegree), 0, 180);
-            var radians = Math.PI - degree * Math.PI / 180.0;
-            var localPoint = new Point(Math.Cos(radians) * _protractorRadius, -Math.Sin(radians) * _protractorRadius);
-            AddDetachedProtractorMarkDot(GetProtractorWorldFromLocal(localPoint));
-            return true;
-        }
-
-        private void AddDetachedProtractorMarkDot(Point worldPoint)
-        {
-            var dot = new Ellipse
-            {
-                Width = 10,
-                Height = 10,
-                Fill = new SolidColorBrush(Color.FromRgb(42, 106, 217)),
-                Stroke = Brushes.White,
-                StrokeThickness = 1.4,
-                IsHitTestVisible = false,
-                Tag = "GeometryProtractorMark"
-            };
-            WpfCanvas.SetLeft(dot, worldPoint.X - dot.Width / 2.0);
-            WpfCanvas.SetTop(dot, worldPoint.Y - dot.Height / 2.0);
-            Panel.SetZIndex(dot, 19);
-            GeometryToolsOverlayCanvas.Children.Add(dot);
-        }
-
-        private void PlaceProtractorAtCenter()
-        {
-            MoveProtractorPivotTo(new Point(GeometryToolsOverlayCanvas.ActualWidth * 0.5, GeometryToolsOverlayCanvas.ActualHeight * 0.52));
-            _protractorAngleDeg = 0;
-            ApplyProtractorTransform();
-        }
-
-        private void MoveProtractorPivotTo(Point pivot)
-        {
-            var local = GetProtractorPivotLocal();
-            var origin = ClampToolOrigin(new Point(pivot.X - local.X, pivot.Y - local.Y),
-                ProtractorBorder.Width, ProtractorBorder.Height, local.X, local.Y, _protractorAngleDeg);
-            WpfCanvas.SetLeft(ProtractorBorder, origin.X);
-            WpfCanvas.SetTop(ProtractorBorder, origin.Y);
-        }
-
-        private void ApplyProtractorTransform()
-        {
-            var pivot = GetProtractorPivotLocal();
-            ProtractorBorder.RenderTransform = new RotateTransform(_protractorAngleDeg, pivot.X, pivot.Y);
-        }
-
-        private bool TryBeginRulerAssist(Point mouse)
-        {
-            if (!IsGeometryDrawingAvailable() || RulerBorder.Visibility != Visibility.Visible) return false;
-            var local = GetMouseLocalToRuler(mouse);
-            var isNearEdge = Math.Abs(Math.Abs(local.LocalY) - local.HalfHeight) <= 18;
-            if (local.LocalX < 44 || local.LocalX > local.RulerWidth - 36 || !isNearEdge) return false;
-            _isRulerAssistDrawing = true;
-            _rulerAssistStartT = Clamp(local.LocalX, 44, local.RulerWidth - 36);
-            _rulerAssistOffset = local.LocalY < 0 ? -local.HalfHeight : local.HalfHeight;
-            inkCanvas.CaptureMouse();
-            UpdateRulerAssistPreview(mouse);
-            return true;
-        }
-
-        private void UpdateRulerAssistPreview(Point current)
-        {
-            var local = GetMouseLocalToRuler(current);
-            var startT = _rulerAssistStartT;
-            var endT = Clamp(local.LocalX, 44, local.RulerWidth - 36);
-            var pivot = GetRulerPivot();
-            var axis = GetRulerAxis();
-            var normal = new Vector(-axis.Y, axis.X);
-            ReplaceGeometryPreview(CreateLineStrokeCollection(pivot + axis * startT + normal * _rulerAssistOffset, pivot + axis * endT + normal * _rulerAssistOffset));
-        }
-
-        private bool TryBeginTriangleAssist(Point mouse)
-        {
-            if (!IsGeometryDrawingAvailable() || TriangleBorder.Visibility != Visibility.Visible) return false;
-            var edge = GetNearestTriangleEdgeProjection(GetTriangleLocalFromWorld(mouse), null);
-            if (edge.Distance > 18.0) return false;
-            _isTriangleAssistDrawing = true;
-            _triangleAssistEdge = edge.Edge;
-            _triangleAssistStartParam = edge.Param;
-            inkCanvas.CaptureMouse();
-            UpdateTriangleAssistPreview(mouse);
-            return true;
-        }
-
-        private void UpdateTriangleAssistPreview(Point current)
-        {
-            var edge = GetNearestTriangleEdgeProjection(GetTriangleLocalFromWorld(current), _triangleAssistEdge);
-            ReplaceGeometryPreview(CreateLineStrokeCollection(
-                GetTriangleWorldFromLocal(GetTriangleEdgePoint(_triangleAssistEdge, _triangleAssistStartParam)),
-                GetTriangleWorldFromLocal(GetTriangleEdgePoint(_triangleAssistEdge, edge.Param))));
+            return e.GetPosition(inkCanvas);
         }
 
         private StrokeCollection CreateLineStrokeCollection(Point start, Point end)
@@ -929,64 +231,7 @@ namespace InkCanvasPlus
             _geometryPreviewStrokes = null;
         }
 
-        private GeometryTriangleProjection GetNearestTriangleEdgeProjection(Point p, GeometryTriangleEdgeType? prefer)
-        {
-            var best = new GeometryTriangleProjection(GeometryTriangleEdgeType.AB, 0, double.MaxValue);
-            CheckTriangleEdgeProjection(GeometryTriangleEdgeType.AB, p, prefer, ref best);
-            CheckTriangleEdgeProjection(GeometryTriangleEdgeType.AC, p, prefer, ref best);
-            CheckTriangleEdgeProjection(GeometryTriangleEdgeType.BC, p, prefer, ref best);
-            return best;
-        }
-
-        private void CheckTriangleEdgeProjection(GeometryTriangleEdgeType edge, Point p, GeometryTriangleEdgeType? prefer, ref GeometryTriangleProjection best)
-        {
-            var projection = ProjectToTriangleEdge(edge, p);
-            if (prefer.HasValue && edge != prefer.Value) projection.Distance += 0.8;
-            if (projection.Distance < best.Distance) best = projection;
-        }
-
-        private GeometryTriangleProjection ProjectToTriangleEdge(GeometryTriangleEdgeType edge, Point p)
-        {
-            if (edge == GeometryTriangleEdgeType.AB)
-                return new GeometryTriangleProjection(edge, Clamp(p.X / _triangleLegX, 0, 1), Math.Abs(p.Y));
-            if (edge == GeometryTriangleEdgeType.AC)
-                return new GeometryTriangleProjection(edge, Clamp(p.Y / _triangleLegY, 0, 1), Math.Abs(p.X));
-            var segment = ProjectPointToSegment(new Point(_triangleLegX, 0), new Point(0, _triangleLegY), p);
-            return new GeometryTriangleProjection(edge, segment.Param, segment.Distance);
-        }
-
-        private Point GetTriangleEdgePoint(GeometryTriangleEdgeType edge, double param)
-        {
-            var t = Clamp(param, 0, 1);
-            if (edge == GeometryTriangleEdgeType.AB) return new Point(_triangleLegX * t, 0);
-            if (edge == GeometryTriangleEdgeType.AC) return new Point(0, _triangleLegY * t);
-            return new Point(_triangleLegX * (1 - t), _triangleLegY * t);
-        }
-
-        private GeometryTriangleProjection ProjectPointToSegment(Point a, Point b, Point p)
-        {
-            var ab = b - a;
-            var ap = p - a;
-            var denom = ab.X * ab.X + ab.Y * ab.Y;
-            if (denom < 0.0001) return new GeometryTriangleProjection(GeometryTriangleEdgeType.BC, 0, (p - a).Length);
-            var t = Clamp((ap.X * ab.X + ap.Y * ab.Y) / denom, 0, 1);
-            var proj = a + ab * t;
-            return new GeometryTriangleProjection(GeometryTriangleEdgeType.BC, t, (p - proj).Length);
-        }
-
-        private bool IsInRulerDragBand(Point mouse)
-        {
-            var local = GetMouseLocalToRuler(mouse);
-            return local.LocalX >= 44 && local.LocalX <= local.RulerWidth - 36 && Math.Abs(local.LocalY) <= 10;
-        }
-
-        private bool IsNearRulerDrawingEdge(Point mouse)
-        {
-            var local = GetMouseLocalToRuler(mouse);
-            return local.LocalX >= 44 && local.LocalX <= local.RulerWidth - 36 &&
-                   Math.Abs(Math.Abs(local.LocalY) - local.HalfHeight) <= 18;
-        }
-
+        /// <summary>判断事件源是不是某个子件（把柄、关闭按钮），是的话尺身就不该插手。</summary>
         private static bool IsOriginalSourceInside(object source, DependencyObject ancestor)
         {
             var current = source as DependencyObject;
@@ -998,121 +243,9 @@ namespace InkCanvasPlus
             return false;
         }
 
-        private Point GetRulerPivot()
-        {
-            var left = WpfCanvas.GetLeft(RulerBorder);
-            var top = WpfCanvas.GetTop(RulerBorder);
-            if (double.IsNaN(left)) left = 0;
-            if (double.IsNaN(top)) top = 0;
-            return new Point(left, top + RulerBorder.Height / 2.0);
-        }
-
-        private Vector GetRulerAxis()
-        {
-            var rad = _rulerAngleDeg * Math.PI / 180.0;
-            return new Vector(Math.Cos(rad), Math.Sin(rad));
-        }
-
-        private GeometryRulerLocal GetMouseLocalToRuler(Point mouse)
-        {
-            var pivot = GetRulerPivot();
-            var axis = GetRulerAxis();
-            var normal = new Vector(-axis.Y, axis.X);
-            var v = mouse - pivot;
-            return new GeometryRulerLocal(v.X * axis.X + v.Y * axis.Y, v.X * normal.X + v.Y * normal.Y, RulerBorder.Width, RulerBorder.Height / 2.0);
-        }
-
-        private Point GetTrianglePivotWorld()
-        {
-            var left = WpfCanvas.GetLeft(TriangleBorder);
-            var top = WpfCanvas.GetTop(TriangleBorder);
-            if (double.IsNaN(left)) left = 0;
-            if (double.IsNaN(top)) top = 0;
-            return new Point(left + GeometryTrianglePivotLocal, top + GeometryTrianglePivotLocal);
-        }
-
-        private Vector GetTriangleAxisX()
-        {
-            var rad = _triangleAngleDeg * Math.PI / 180.0;
-            return new Vector(Math.Cos(rad), Math.Sin(rad));
-        }
-
-        private Vector GetTriangleAxisY()
-        {
-            var x = GetTriangleAxisX();
-            return new Vector(-x.Y, x.X);
-        }
-
-        private Point GetTriangleLocalFromWorld(Point world)
-        {
-            var pivot = GetTrianglePivotWorld();
-            var v = world - pivot;
-            var ax = GetTriangleAxisX();
-            var ay = GetTriangleAxisY();
-            return new Point(v.X * ax.X + v.Y * ax.Y, v.X * ay.X + v.Y * ay.Y);
-        }
-
-        private Point GetTriangleWorldFromLocal(Point local)
-        {
-            var pivot = GetTrianglePivotWorld();
-            var ax = GetTriangleAxisX();
-            var ay = GetTriangleAxisY();
-            return pivot + ax * local.X + ay * local.Y;
-        }
-
-        private Point GetProtractorPivotLocal()
-        {
-            return new Point(GeometryProtractorPadding + _protractorRadius, GeometryProtractorPadding + _protractorRadius);
-        }
-
-        private Point GetProtractorPivotWorld()
-        {
-            var left = WpfCanvas.GetLeft(ProtractorBorder);
-            var top = WpfCanvas.GetTop(ProtractorBorder);
-            if (double.IsNaN(left)) left = 0;
-            if (double.IsNaN(top)) top = 0;
-            var local = GetProtractorPivotLocal();
-            return new Point(left + local.X, top + local.Y);
-        }
-
-        private Vector GetProtractorAxisX()
-        {
-            var rad = _protractorAngleDeg * Math.PI / 180.0;
-            return new Vector(Math.Cos(rad), Math.Sin(rad));
-        }
-
-        private Vector GetProtractorAxisY()
-        {
-            var x = GetProtractorAxisX();
-            return new Vector(-x.Y, x.X);
-        }
-
-        private Point GetProtractorLocalFromWorld(Point world)
-        {
-            var pivot = GetProtractorPivotWorld();
-            var v = world - pivot;
-            var ax = GetProtractorAxisX();
-            var ay = GetProtractorAxisY();
-            return new Point(v.X * ax.X + v.Y * ax.Y, v.X * ay.X + v.Y * ay.Y);
-        }
-
-        private Point GetProtractorWorldFromLocal(Point local)
-        {
-            var pivot = GetProtractorPivotWorld();
-            var ax = GetProtractorAxisX();
-            var ay = GetProtractorAxisY();
-            return pivot + ax * local.X + ay * local.Y;
-        }
-
         private static double GetPointerAngleAround(Point center, Point pointer)
         {
             var v = pointer - center;
-            return Math.Atan2(v.Y, v.X) * 180 / Math.PI;
-        }
-
-        private double GetPointerAngle(Point pointer)
-        {
-            var v = pointer - GetRulerPivot();
             return Math.Atan2(v.Y, v.X) * 180 / Math.PI;
         }
 
@@ -1155,7 +288,8 @@ namespace InkCanvasPlus
         }
 
         /// <summary>
-        /// 按尺具旋转后的实际占据范围约束其位置，使尺具整体保留在画布可见区域内。
+        /// 按尺具旋转后的实际占据范围约束其位置，使尺具整体保留在“屏幕上看得见的那一块”里。
+        /// 夹的是当前可见区而不是整块黑板：黑板比窗口大得多，夹在黑板里就等于允许尺具被拖到屏幕外。
         /// </summary>
         /// <param name="origin">期望的尺具左上角位置</param>
         /// <param name="width">尺具未旋转时的宽度</param>
@@ -1166,15 +300,46 @@ namespace InkCanvasPlus
         private Point ClampToolOrigin(Point origin, double width, double height, double pivotX, double pivotY, double angleDeg)
         {
             var bounds = GetRotatedVisualBounds(width, height, pivotX, pivotY, angleDeg);
-            var maxLeft = Math.Max(0, GeometryToolsOverlayCanvas.ActualWidth - bounds.Width);
-            var maxTop = Math.Max(0, GeometryToolsOverlayCanvas.ActualHeight - bounds.Height - 80);
-            return new Point(
-                ClampAxis(origin.X, -bounds.X, maxLeft - bounds.X),
-                ClampAxis(origin.Y, -bounds.Y, maxTop - bounds.Y));
+            var boxLeft = ClampAxisKeepingVisible(
+                origin.X + bounds.X, bounds.Width, BoardVisibleLeft, BoardVisibleWidth, 0);
+            // 纵向再留 80px 给左下角的浮动工具栏，和照片的处理保持一致
+            var boxTop = ClampAxisKeepingVisible(
+                origin.Y + bounds.Y, bounds.Height, BoardVisibleTop, BoardVisibleHeight, 80);
+
+            return new Point(boxLeft - bounds.X, boxTop - bounds.Y);
         }
 
         /// <summary>
-        /// 约束单个坐标轴上的位置。当尺具旋转后的跨度超过画布可用范围时，取靠左上的一侧。
+        /// 沿单个坐标轴约束一整块矩形（尺具/照片旋转后的实际占据范围）的位置，让它留在可见区里。
+        /// 装得下就整块留在可见区（和传统的“靠左上”夹法完全一致）；装不下（尺子拉得比屏幕还长、
+        /// 照片放得比屏幕还大）就退一步，只要求还有 OversizedMinVisibleSpan 那么宽的一段搭在
+        /// 可见区里 —— 否则跨度越大越被顶到可见区的左上角，看着就是“东西自己往左上跑”，
+        /// 拖也拖不出来。这个余量以前夹的是“矩形中心还在可见区里”，跨度一大两端就永远落在屏幕外，
+        /// 尺子够不着把柄；
+        /// 缩尺子时更糟：跨度一变小允许的位置整体右移，一帧就把整把尺子顶过去几千像素，
+        /// 把柄直接从指头底下飞走（“一拖尺子右端，整块屏幕跟着跳，尺子右侧就看不见了”）。
+        /// 改成只要求搭着边，跳动最多也就是这个余量的量级。
+        /// </summary>
+        /// <param name="boxLeft">矩形左（上）边缘在可见区坐标系里的位置</param>
+        /// <param name="boxSize">矩形在这个轴上的跨度</param>
+        /// <param name="visibleLeft">可见区左（上）边缘</param>
+        /// <param name="visibleSize">可见区在这个轴上的长度</param>
+        /// <param name="reserve">这个方向尾部要空出的余量，例如底部留给浮动工具栏的 80px</param>
+        private static double ClampAxisKeepingVisible(double boxLeft, double boxSize, double visibleLeft, double visibleSize, double reserve)
+        {
+            if (boxSize + reserve <= visibleSize)
+            {
+                return ClampAxis(boxLeft, visibleLeft, visibleLeft + visibleSize - reserve - boxSize);
+            }
+
+            //余量本身比矩形还大（窗口特别小时）就退回“左边缘对齐可见区左边缘”，别把矩形推到屏幕外
+            var keep = Math.Min(OversizedMinVisibleSpan, boxSize);
+            return ClampAxis(boxLeft, visibleLeft - boxSize + keep, visibleLeft + visibleSize - reserve - keep);
+        }
+
+        /// <summary>
+        /// 约束单个坐标轴上的位置。装不下时由 ClampAxisKeepingCenterVisible 换算好范围，
+        /// 这里只在范围本身不成立（浮点误差）时兜底取靠左上的一侧。
         /// </summary>
         private static double ClampAxis(double value, double min, double max)
         {
@@ -1193,12 +358,6 @@ namespace InkCanvasPlus
             var origin = ClampToolOrigin(new Point(left, top), width, height, pivotX, pivotY, angleDeg);
             WpfCanvas.SetLeft(tool, origin.X);
             WpfCanvas.SetTop(tool, origin.Y);
-        }
-
-        private void KeepProtractorInsideCanvas()
-        {
-            var pivot = GetProtractorPivotLocal();
-            KeepToolInsideCanvas(ProtractorBorder, ProtractorBorder.Width, ProtractorBorder.Height, pivot.X, pivot.Y, _protractorAngleDeg);
         }
 
         private static double Clamp(double value, double min, double max)

@@ -103,13 +103,13 @@ namespace InkCanvasPlus
 
             InitBoardViewTransforms();
 
-            //黑板一藏起来（切到屏幕模式、进 PPT 放映……）就退出拖动状态并把整体位移归零，
-            //否则这个状态和位移会在别的模式下继续生效
+            //黑板一藏起来（切到屏幕模式、进 PPT 放映……）就退出拖动状态，位移也一并摘下来，
+            //否则这个状态和位移会在别的模式下继续生效。
+            //位移的值本身留着（ApplyBoardView 负责挂上/摘下），黑板再显示时板书还停在原处
             GridBackgroundCover.IsVisibleChanged += (s, e) =>
             {
-                if ((bool)e.NewValue) return;
-                SetBoardDragMode(false);
-                ResetBoardView();
+                if (!(bool)e.NewValue) SetBoardDragMode(false);
+                ApplyBoardView();
             };
 
             Microsoft.Win32.SystemEvents.UserPreferenceChanged += SystemEvents_UserPreferenceChanged;

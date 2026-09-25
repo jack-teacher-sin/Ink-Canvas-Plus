@@ -65,6 +65,12 @@ namespace InkCanvasPlus
         private CameraDragMode _cameraDragMode = CameraDragMode.None;
         private Point _cameraGrabOffset;
         private double _cameraBaseW, _cameraBaseH;
+        //缩放的两个锚点：开始拖动时"对角的那个角"落在黑板上的位置，以及指针相对它的局部坐标。
+        //整个缩放过程里绝不重算这两个值 —— 参考点一旦跟着尺寸跑，每来一次鼠标事件尺寸都会
+        //往反方向弹一下（指针把它放大→中心朝指针挪→指针到中心的距离变短→又算小……），
+        //表现就是拖动时照片抖、松手后位置还跑了
+        private Point _cameraScaleAnchor;
+        private Point _cameraScaleGrabLocal;
         private double _cameraRotateOffsetDeg;
         private int _cameraSnapshotTopZ = 1;
 
@@ -119,12 +125,15 @@ namespace InkCanvasPlus
 
             EvictCameraSnapshotsFor((long)source.PixelWidth * source.PixelHeight);
 
-            var areaW = CameraSnapshotCanvas.ActualWidth;
-            var areaH = CameraSnapshotCanvas.ActualHeight;
+            // 按「窗口里看得见的那一块」来定尺寸，不能按画布算：
+            // 黑板画布比窗口大得多（每边好几个屏幕），按画布算初始尺寸会大出好几个屏幕
+            var areaW = BoardVisibleWidth;
+            var areaH = BoardVisibleHeight;
             if (areaW <= 0 || areaH <= 0)
             {
-                areaW = inkCanvas.ActualWidth;
-                areaH = inkCanvas.ActualHeight;
+                //兜底也要用窗口尺寸：CameraSnapshotCanvas 是黑板画布，比窗口大好几个屏幕
+                areaW = Main_Grid.ActualWidth;
+                areaH = Main_Grid.ActualHeight;
             }
             if (areaW <= 0 || areaH <= 0)
             {
@@ -132,7 +141,7 @@ namespace InkCanvasPlus
                 areaH = 600;
             }
 
-            // 初始尺寸：不超过画布 60%，并保持宽高比；小图不放大，只保证不低于下限
+            // 初始尺寸：不超过可见区 60%，并保持宽高比；小图不放大，只保证不低于下限
             var ratio = Math.Min(areaW * 0.6 / source.PixelWidth, areaH * 0.6 / source.PixelHeight);
             if (ratio > 1) ratio = 1;
             var w = source.PixelWidth * ratio;
@@ -201,8 +210,10 @@ namespace InkCanvasPlus
             rec.Frame.Children.Add(rec.CloseGrip);
             rec.Frame.Children.Add(rec.CropGrip);
 
-            rec.X = (areaW - w) / 2.0;
-            rec.Y = (areaH - h) / 2.0;
+            // 落在当前可见区正中。黑板拖过之后也照旧落在屏幕中间，
+            // 而不是落到黑板上那块看不见的地方去
+            rec.X = BoardVisibleLeft + (areaW - w) / 2.0;
+            rec.Y = BoardVisibleTop + (areaH - h) / 2.0;
 
             CameraSnapshotCanvas.Children.Add(rec.Image);
             CameraControlsOverlayCanvas.Children.Add(rec.Frame);
@@ -368,6 +379,13 @@ namespace InkCanvasPlus
 
             var p = e.GetPosition(CameraControlsOverlayCanvas);
             _cameraGrabOffset = new Point(p.X - rec.X, p.Y - rec.Y);
+            if (mode == CameraDragMode.Scale)
+            {
+                //锚点和抓取点都定在按下这一刻，缩放过程中不再改
+                _cameraScaleAnchor = RenderedLocalOrigin(rec);
+                _cameraScaleGrabLocal = RotateCameraVector(
+                    new Point(p.X - _cameraScaleAnchor.X, p.Y - _cameraScaleAnchor.Y), -rec.AngleDeg);
+            }
             if (mode == CameraDragMode.Rotate)
             {
                 _cameraRotateOffsetDeg = GetPointerAngleAround(CameraSnapshotCenter(rec), p) - rec.AngleDeg;
@@ -394,16 +412,22 @@ namespace InkCanvasPlus
 
                 case CameraDragMode.Scale:
                 {
-                    // 把指针换算到照片未旋转时的局部坐标系，两个方向取较大的缩放系数，
-                    // 宽高同乘一个系数，因此宽高比天然保持不变
-                    var center = CameraSnapshotCenter(rec);
-                    var v = RotateCameraVector(new Point(p.X - center.X, p.Y - center.Y), -rec.AngleDeg);
-                    var halfW = Math.Max(1, _cameraBaseW / 2.0);
-                    var halfH = Math.Max(1, _cameraBaseH / 2.0);
-                    var scale = Math.Max(Math.Abs(v.X) / halfW, Math.Abs(v.Y) / halfH);
+                    // 锚点取"对角的那个角"（右下手柄 ⇒ 左上角），按未旋转的局部坐标系算：
+                    // 指针相对锚点的局部坐标 ÷ 抓取时的局部坐标 = 缩放系数，宽高同乘一个系数，
+                    // 宽高比天然保持不变。两个方向取较大的那个，手柄于是始终贴着手指。
+                    var v = RotateCameraVector(
+                        new Point(p.X - _cameraScaleAnchor.X, p.Y - _cameraScaleAnchor.Y), -rec.AngleDeg);
+                    var scale = Math.Max(v.X / Math.Max(1, _cameraScaleGrabLocal.X),
+                                         v.Y / Math.Max(1, _cameraScaleGrabLocal.Y));
                     scale = Clamp(scale, 1.0 / CameraSnapshotMaxScale, CameraSnapshotMaxScale);
                     rec.W = Math.Max(CameraSnapshotMinSize, _cameraBaseW * scale);
                     rec.H = Math.Max(CameraSnapshotMinSize, _cameraBaseH * scale);
+
+                    // 反推左上角，让锚点在屏幕上原地不动（旋转是绕中心的，所以要把这个偏移算回去）
+                    var half = new Point(rec.W / 2.0, rec.H / 2.0);
+                    var rotatedHalf = RotateCameraVector(half, rec.AngleDeg);
+                    rec.X = _cameraScaleAnchor.X - half.X + rotatedHalf.X;
+                    rec.Y = _cameraScaleAnchor.Y - half.Y + rotatedHalf.Y;
                     break;
                 }
 
@@ -436,6 +460,17 @@ namespace InkCanvasPlus
         private static Point CameraSnapshotCenter(CameraSnapshot rec)
         {
             return new Point(rec.X + rec.W / 2.0, rec.Y + rec.H / 2.0);
+        }
+
+        /// <summary>
+        /// 照片局部坐标 (0,0) 那个角当前落在黑板上的位置。旋转是绕中心做的，
+        /// 所以它和 (X,Y) 不是一回事，要用中心反算回来。缩放就以它为锚点。
+        /// </summary>
+        private static Point RenderedLocalOrigin(CameraSnapshot rec)
+        {
+            var half = new Point(rec.W / 2.0, rec.H / 2.0);
+            var rotatedHalf = RotateCameraVector(half, rec.AngleDeg);
+            return new Point(rec.X + half.X - rotatedHalf.X, rec.Y + half.Y - rotatedHalf.Y);
         }
 
         private static Point RotateCameraVector(Point v, double angleDeg)
@@ -506,13 +541,19 @@ namespace InkCanvasPlus
         }
 
         /// <summary>
-        /// 把照片约束在画板可见区域内。按旋转后的实际包围盒来夹取，
-        /// 否则旋转 45 度后照片会有一角探出画布。
+        /// 把照片约束在“屏幕上看得见的那一块”里。按旋转后的实际包围盒来夹取，
+        /// 否则旋转 45 度后照片会有一角探出屏幕。
         /// </summary>
         /// <remarks>
-        /// 这里复用几何工具的三个静态助手（GetRotatedVisualBounds / ClampAxis）。
+        /// 夹的是当前可见区而不是整块黑板：黑板比窗口大得多，夹在黑板里就等于允许照片被拖到
+        /// 屏幕外再也找不回来。这里复用几何工具的静态助手（GetRotatedVisualBounds /
+        /// ClampAxisKeepingVisible），它们不认识画布，谁都能用。
         /// 没有直接复用 ClampToolOrigin：它把目标画布硬编码成了 GeometryToolsOverlayCanvas，
         /// 依赖两个画布恰好同尺寸并不牢靠，所以在自己的文件里写一份更安全。
+        ///
+        /// 照片比可见区还大的时候只保证还有一段搭在可见区里（见 ClampAxisKeepingVisible），
+        /// 不再硬顶到可见区的左上角 —— 顶的结果是照片越大越被拽向屏幕左上角，放大的过程
+        /// 看着就是“照片自己跑了”。
         /// </remarks>
         private Point ClampCameraSnapshotOrigin(Point origin, double w, double h, double angleDeg)
         {
@@ -522,13 +563,13 @@ namespace InkCanvasPlus
             var extentH = h + pad * 2;
             var bounds = GetRotatedVisualBounds(extentW, extentH, extentW / 2.0, extentH / 2.0, angleDeg);
 
-            // 底部再留 80px 给左下角的浮动工具栏，和尺具的处理保持一致
-            var maxLeft = Math.Max(0, CameraSnapshotCanvas.ActualWidth - bounds.Width);
-            var maxTop = Math.Max(0, CameraSnapshotCanvas.ActualHeight - bounds.Height - 80);
+            var boxLeft = ClampAxisKeepingVisible(
+                origin.X - pad + bounds.X, bounds.Width, BoardVisibleLeft, BoardVisibleWidth, 0);
+            // 纵向再留 80px 给左下角的浮动工具栏，和尺具的处理保持一致
+            var boxTop = ClampAxisKeepingVisible(
+                origin.Y - pad + bounds.Y, bounds.Height, BoardVisibleTop, BoardVisibleHeight, 80);
 
-            return new Point(
-                ClampAxis(origin.X - pad, -bounds.X, maxLeft - bounds.X) + pad,
-                ClampAxis(origin.Y - pad, -bounds.Y, maxTop - bounds.Y) + pad);
+            return new Point(boxLeft - bounds.X + pad, boxTop - bounds.Y + pad);
         }
 
         #endregion

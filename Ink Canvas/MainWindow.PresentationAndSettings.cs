@@ -403,9 +403,10 @@ namespace InkCanvasPlus
 
                 Matrix m = new Matrix();
 
-                // Find center of element and then transform to get current location of center
-                FrameworkElement fe = e.Source as FrameworkElement;
-                Point center = new Point(fe.ActualWidth / 2, fe.ActualHeight / 2);
+                // 缩放/旋转绕着“屏幕中心”来，不是绕着 inkCanvas 自己的中心：
+                // 黑板画布比窗口大得多（每边好几个屏幕），用它自己的中心会跑到屏幕外面，
+                // 两指一捏板书就飞出去了
+                Point center = new Point(BoardVisibleLeft + BoardVisibleWidth / 2, BoardVisibleTop + BoardVisibleHeight / 2);
                 center = m.Transform(center);  // 转换为矩阵缩放和旋转的中心点
 
                 // Update matrix to reflect translation/rotation

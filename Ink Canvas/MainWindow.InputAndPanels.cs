@@ -1411,6 +1411,8 @@ namespace InkCanvasPlus
             // 照片也是这一页的内容，「清屏」就该把它一起清干净，
             // 只清墨迹而留下实物照片会让人以为没清掉
             ClearCameraSnapshots();
+            // 量角器点出来的定点标记同理：它是画在这一页上的记号，不是尺具的一部分
+            ClearProtractorMarks();
 
             CancelSingleFingerDragMode();
         }
