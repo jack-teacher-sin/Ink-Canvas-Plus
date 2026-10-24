@@ -57,9 +57,15 @@ namespace InkCanvasPlus
             /// <summary>未旋转时的左上角位置与尺寸（照片层坐标系）。</summary>
             public double X, Y, W, H;
             public double AngleDeg;
+            /// <summary>这张照片属于哪一张 PPT 幻灯片；0 表示不是放映中抓拍的（黑板/桌面上的照片）。</summary>
+            public int PptSlide;
+            /// <summary>照片当前是否贴在画布上。翻到别的幻灯片时只摘下来，不清掉。</summary>
+            public bool IsOnCanvas;
         }
 
         private readonly List<CameraSnapshot> _cameraSnapshots = new List<CameraSnapshot>();
+        /// <summary>当前放映到第几张幻灯片；0 表示不在放映中。展台照片按这个号分页。</summary>
+        private int _cameraPptSlide;
         private CameraWindow _cameraWindow;
         private CameraSnapshot _cameraDragTarget;
         private CameraDragMode _cameraDragMode = CameraDragMode.None;
@@ -153,7 +159,7 @@ namespace InkCanvasPlus
                 h *= k;
             }
 
-            var rec = new CameraSnapshot { W = w, H = h, AngleDeg = 0 };
+            var rec = new CameraSnapshot { W = w, H = h, AngleDeg = 0, PptSlide = _cameraPptSlide };
 
             rec.Image = new Image
             {
@@ -215,13 +221,98 @@ namespace InkCanvasPlus
             rec.X = BoardVisibleLeft + (areaW - w) / 2.0;
             rec.Y = BoardVisibleTop + (areaH - h) / 2.0;
 
-            CameraSnapshotCanvas.Children.Add(rec.Image);
-            CameraControlsOverlayCanvas.Children.Add(rec.Frame);
             _cameraSnapshots.Add(rec);
 
             BringCameraSnapshotToFront(rec);
+            AttachCameraSnapshot(rec);
+        }
+
+        /// <summary>把照片贴回画布。已经在画布上就什么都不做。</summary>
+        private void AttachCameraSnapshot(CameraSnapshot rec)
+        {
+            if (rec == null || rec.IsOnCanvas) return;
+
+            CameraSnapshotCanvas.Children.Add(rec.Image);
+            CameraControlsOverlayCanvas.Children.Add(rec.Frame);
+            rec.IsOnCanvas = true;
             ApplyCameraSnapshotTransform(rec);
         }
+
+        /// <summary>
+        /// 把照片从画布上摘下来，但保留对象和位图 —— 翻回这一页时要原样贴回去。
+        /// 正在裁剪或拖动这张的话先把编辑状态收掉，否则手柄会跟着一张不在画布上的照片走。
+        /// </summary>
+        private void DetachCameraSnapshot(CameraSnapshot rec)
+        {
+            if (rec == null || !rec.IsOnCanvas) return;
+
+            if (_cameraCrop != null && ReferenceEquals(_cameraCrop.Target, rec)) EndCameraCrop();
+            if (ReferenceEquals(_cameraDragTarget, rec))
+            {
+                _cameraDragTarget = null;
+                _cameraDragMode = CameraDragMode.None;
+                // 手柄可能还握着鼠标；照片已经不在画布上了，不主动放开的话
+                // 下一次点别处之前都会停留在拖动捕获状态
+                Mouse.Captured?.ReleaseMouseCapture();
+            }
+
+            CameraSnapshotCanvas.Children.Remove(rec.Image);
+            CameraControlsOverlayCanvas.Children.Remove(rec.Frame);
+            rec.IsOnCanvas = false;
+        }
+
+        #region PPT 分页
+
+        /// <summary>
+        /// 把展台照片切到指定幻灯片：属于这一页的贴回画布，别的页上的先摘下来存着。
+        /// 只摘不删，翻回上一页时才能原样看到。
+        /// 放映中黑板/桌面上的照片也一并收起来，免得它们压在所有幻灯片上；
+        /// 退出放映后这些照片再原样贴回去。
+        /// </summary>
+        private void SetCameraPptSlide(int slide)
+        {
+            _cameraPptSlide = slide > 0 ? slide : 0;
+            foreach (var rec in _cameraSnapshots)
+            {
+                var belongsToCurrentPage = _cameraPptSlide > 0
+                    ? rec.PptSlide == _cameraPptSlide
+                    : rec.PptSlide == 0;
+                if (belongsToCurrentPage) AttachCameraSnapshot(rec);
+                else DetachCameraSnapshot(rec);
+            }
+        }
+
+        /// <summary>
+        /// 进入放映：照片改按幻灯片分页。上一次放映如果没收到 SlideShowEnd，
+        /// 留下的照片会挡住这一页，这里顺手清掉；正在放映中就不要重复清。
+        /// </summary>
+        private void EnterCameraPptSlide(int slide)
+        {
+            if (_cameraPptSlide <= 0)
+            {
+                foreach (var rec in _cameraSnapshots.ToArray())
+                {
+                    if (rec.PptSlide > 0) RemoveCameraSnapshot(rec);
+                }
+            }
+            SetCameraPptSlide(slide);
+        }
+
+        /// <summary>
+        /// 退出放映：放映期间抓拍的照片不写入存档，一次性释放（翻回页面已无意义）；
+        /// 放映开始时收起来的黑板/桌面照片重新贴回原处。
+        /// </summary>
+        private void ExitCameraPptSlide()
+        {
+            _cameraPptSlide = 0;
+            foreach (var rec in _cameraSnapshots.ToArray())
+            {
+                if (rec.PptSlide > 0) RemoveCameraSnapshot(rec);
+            }
+            SetCameraPptSlide(0);
+        }
+
+        #endregion
 
         /// <summary>
         /// 按数量上限和像素预算腾出空间，从最早的一张开始淘汰。
@@ -259,18 +350,24 @@ namespace InkCanvasPlus
 
             // 正在裁这张就先把裁剪状态收掉，否则会话里会留着一个已经不在画布上的照片
             if (_cameraCrop != null && ReferenceEquals(_cameraCrop.Target, rec)) EndCameraCrop();
+            DetachCameraSnapshot(rec);
 
-            if (ReferenceEquals(_cameraDragTarget, rec))
-            {
-                _cameraDragTarget = null;
-                _cameraDragMode = CameraDragMode.None;
-            }
-
-            CameraSnapshotCanvas.Children.Remove(rec.Image);
-            CameraControlsOverlayCanvas.Children.Remove(rec.Frame);
             // 主动断开位图引用：照片是临时对象，不主动放手会一直占着几 MB 内存
             if (rec.Image != null) rec.Image.Source = null;
             _cameraSnapshots.Remove(rec);
+        }
+
+        /// <summary>画布上当前有没有照片。摘下来存放的其他幻灯片照片不算。</summary>
+        private bool HasAttachedCameraSnapshot
+        {
+            get
+            {
+                foreach (var rec in _cameraSnapshots)
+                {
+                    if (rec.IsOnCanvas) return true;
+                }
+                return false;
+            }
         }
 
         /// <summary>清屏时一并清除照片：「清屏」的语义是把这一页清干净。</summary>
@@ -279,9 +376,11 @@ namespace InkCanvasPlus
             EndCameraCrop();
             _cameraDragTarget = null;
             _cameraDragMode = CameraDragMode.None;
+            // 只清画布上这些（也就是当前这一页）：PPT 放映中，其他幻灯片上的照片
+            // 已经摘下来存在 _cameraSnapshots 里，不属于当前页，不能顺手一起清掉
             foreach (var rec in _cameraSnapshots.ToArray())
             {
-                RemoveCameraSnapshot(rec);
+                if (rec.IsOnCanvas) RemoveCameraSnapshot(rec);
             }
             CameraSnapshotCanvas.Children.Clear();
             CameraControlsOverlayCanvas.Children.Clear();

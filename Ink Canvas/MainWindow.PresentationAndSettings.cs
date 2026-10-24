@@ -538,6 +538,9 @@ namespace InkCanvasPlus
 
         public static bool IsNotifyPreviousPageWindowShown = false;
 
+        // PowerPoint 没在运行时每秒都会探测失败，只在失败状态变化时记一条，避免日志刷屏
+        private bool _pptDetectionFailureLogged;
+
         private void TimerCheckPPT_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (IsShowingRestoreHiddenSlidesWindow) return;
@@ -567,6 +570,8 @@ namespace InkCanvasPlus
                     pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
                     pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
                     pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
+                    _pptDetectionFailureLogged = false;
+                    LogHelper.WriteLogToFile("PowerPoint 已连接，开始监听放映事件", LogHelper.LogType.Event);
                     // 获得幻灯片对象集合
                     slides = presentation.Slides;
 
@@ -665,9 +670,14 @@ namespace InkCanvasPlus
                     PptApplication_SlideShowBegin(pptApplication.SlideShowWindows[1]);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 //StackPanelPPTControls.Visibility = Visibility.Collapsed;
+                if (!_pptDetectionFailureLogged)
+                {
+                    _pptDetectionFailureLogged = true;
+                    LogHelper.NewLog("PowerPoint 探测失败：" + ex.Message);
+                }
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     BtnPPTSlideShow.Visibility = Visibility.Collapsed;
@@ -739,6 +749,9 @@ namespace InkCanvasPlus
                 slidescount = Wn.Presentation.Slides.Count;
                 previousSlideID = 0;
                 memoryStreams = new MemoryStream[slidescount + 2];
+
+                // 展台照片按幻灯片分页：进入放映先对到当前页（见 MainWindow.Camera.cs）
+                EnterCameraPptSlide(Wn.View.CurrentShowPosition);
 
                 pptName = Wn.Presentation.Name;
                 LogHelper.NewLog("Name: " + Wn.Presentation.Name);
@@ -934,6 +947,9 @@ namespace InkCanvasPlus
             {
                 isPresentationHaveBlackSpace = false;
 
+                // 放映结束，放映期间抓拍的照片一次性释放（抓拍不写入存档）
+                ExitCameraPptSlide();
+
                 if (BtnSwitchTheme.Content.ToString() == "深色")
                 {
                     //Light
@@ -1014,6 +1030,9 @@ namespace InkCanvasPlus
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
+                    // 展台照片跟着幻灯片走：上一页的收起来（翻回去还在），这一页的贴回来
+                    SetCameraPptSlide(Wn.View.CurrentShowPosition);
+
                     MemoryStream ms = new MemoryStream();
                     inkCanvas.Strokes.Save(ms);
                     ms.Position = 0;

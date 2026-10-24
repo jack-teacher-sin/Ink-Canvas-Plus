@@ -112,7 +112,7 @@ namespace InkCanvasPlus
             get
             {
                 if (boardViewX != 0 || boardViewY != 0) return true;
-                if (inkCanvas.Strokes.Count > 0 || _cameraSnapshots.Count > 0) return true;
+                if (inkCanvas.Strokes.Count > 0 || HasAttachedCameraSnapshot) return true;
                 //尺具是实例表，开着一把就算有东西；关掉就从表里摘掉了
                 return _geometryToolInstances.Count > 0;
             }
